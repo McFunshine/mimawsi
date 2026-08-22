@@ -150,14 +150,15 @@ jobs:
             const claims = JSON.parse(
               Buffer.from(token.split('.')[1], 'base64url').toString(),
             );
-            core.info(JSON.stringify({
-              iss: claims.iss,
-              aud: claims.aud,
-              sub: claims.sub,
-              repository: claims.repository,
-              ref: claims.ref,
-              event_name: claims.event_name,
-            }, null, 2));
+            const keep = [
+              'iss', 'aud', 'sub', 'repository', 'repository_id',
+              'repository_owner', 'repository_owner_id', 'ref', 'ref_type',
+              'event_name', 'workflow_ref', 'job_workflow_ref',
+            ];
+            core.info(JSON.stringify(
+              Object.fromEntries(keep.filter((k) => k in claims).map((k) => [k, claims[k]])),
+              null, 2,
+            ));
 
       - name: Assume the deploy role
         uses: aws-actions/configure-aws-credentials@v4
