@@ -50,10 +50,12 @@ const runnerOrigin =
   <p class="actions">
     <a href={`/tools/${id}.html`} download={`${id}.html`}>Download {title}</a>
   </p>
-  <p class="note">
-    This tool is running in an isolated frame. It cannot reach the network, and it
-    cannot see anything on this page. Download it and it behaves identically offline.
-  </p>
+  {runnerOrigin && (
+    <p class="note">
+      This tool is running in an isolated frame. It cannot reach the network, and it
+      cannot see anything on this page. Download it and it behaves identically offline.
+    </p>
+  )}
 </Base>
 
 <style>
