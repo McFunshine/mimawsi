@@ -140,6 +140,25 @@ jobs:
           fi
           echo "No local addresses in the build."
 
+      # TEMPORARY. Prints the claims this run actually presents so they can be
+      # compared against the role's trust policy. Claims only — never the token.
+      - name: Show the OIDC claims this run presents
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const claims = JSON.parse(
+              Buffer.from(token.split('.')[1], 'base64url').toString(),
+            );
+            core.info(JSON.stringify({
+              iss: claims.iss,
+              aud: claims.aud,
+              sub: claims.sub,
+              repository: claims.repository,
+              ref: claims.ref,
+              event_name: claims.event_name,
+            }, null, 2));
+
       - name: Assume the deploy role
         uses: aws-actions/configure-aws-credentials@v4
         with:
