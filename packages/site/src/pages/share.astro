@@ -1,0 +1,228 @@
+---
+import Base from '../layouts/Base.astro';
+
+// The API is a separate origin — a Function URL in production, a local port now.
+const apiOrigin = import.meta.env.PUBLIC_API_ORIGIN ?? 'http://localhost:4323';
+---
+<Base title="Share a tool — mimawsi">
+  <p class="back"><a href="/">&larr; All tools</a></p>
+  <h1>Share a tool</h1>
+  <p class="lede">
+    Pick your HTML file. It runs here, in your browser, straight away — nothing is
+    uploaded and nothing is sent anywhere until you choose to submit it.
+  </p>
+
+  <noscript>
+    <p class="warn">
+      Sharing a tool needs JavaScript, because your file is read and run entirely in
+      this page rather than on a server. Browsing and downloading the catalogue work
+      without it.
+    </p>
+  </noscript>
+
+  <div class="drop" id="drop">
+    <label for="file">Choose an HTML file</label>
+    <input id="file" type="file" accept=".html,text/html" />
+    <p class="hint">or drag it here</p>
+  </div>
+
+  <p class="chosen" id="chosen" hidden></p>
+
+  {/*
+    The preview frame is created only once a file is chosen, so its accessible
+    name can carry the tool's own title. It is sandboxed without
+    allow-same-origin, exactly like the published runner — a maker should see the
+    same isolation before submitting that a downloader gets afterwards.
+  */}
+  <div id="preview"></div>
+
+  <form id="details" data-api={apiOrigin}>
+    <p class="field">
+      <label for="title">Title</label>
+      <input id="title" name="title" type="text" required />
+    </p>
+    <p class="field">
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="3" required></textarea>
+    </p>
+    <p class="submit">
+      <button id="submit" type="submit">Submit</button>
+    </p>
+  </form>
+
+  {/*
+    Sign-in is prompted at submit and never before, and the file is not sent until
+    it succeeds — bytes must not reach storage while anonymous (AC-19). The button
+    only exists once submit has been attempted.
+  */}
+  <div id="auth" hidden>
+    <p class="prompt">Signing in lets us attribute the tool to you and rate-limit abuse.</p>
+    <button id="signin" type="button">Sign in with Google</button>
+  </div>
+
+  <p id="status" role="status" class="status"></p>
+</Base>
+
+<script>
+  const input = document.getElementById('file') as HTMLInputElement;
+  const drop = document.getElementById('drop') as HTMLElement;
+  const chosen = document.getElementById('chosen') as HTMLElement;
+  const preview = document.getElementById('preview') as HTMLElement;
+  const details = document.getElementById('details') as HTMLFormElement;
+  const auth = document.getElementById('auth') as HTMLElement;
+  const signin = document.getElementById('signin') as HTMLButtonElement;
+  const status = document.getElementById('status') as HTMLElement;
+  const api = details.dataset.api as string;
+
+  let chosenHtml = '';
+
+  // Session token lives with the page, not the server. Cleared with the tab, so a
+  // fresh browser context starts signed out — which is what a real cookie does.
+  const TOKEN_KEY = 'mimawsi-session';
+  const authHeaders = (): Record<string, string> => {
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    return token === null ? {} : { authorization: `Bearer ${token}` };
+  };
+
+  /**
+   * Reads the tool's own <title>. DOMParser builds an inert document — scripts do
+   * not run and resources are not fetched — so this is safe on a file we have not
+   * examined yet.
+   */
+  function titleOf(html: string): string {
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    const title = parsed.querySelector('title')?.textContent?.trim();
+    return title && title.length > 0 ? title : 'Untitled tool';
+  }
+
+  function show(name: string, html: string): void {
+    const title = titleOf(html);
+
+    chosen.textContent = `${name} — ${title}`;
+    chosen.hidden = false;
+
+    const frame = document.createElement('iframe');
+    frame.title = `Running ${title}`;
+    frame.setAttribute('sandbox', 'allow-scripts allow-downloads');
+    frame.setAttribute('referrerpolicy', 'no-referrer');
+    frame.srcdoc = html;
+
+    preview.replaceChildren(frame);
+  }
+
+  async function handle(file: File | undefined): Promise<void> {
+    if (!file) {
+      return;
+    }
+    chosenHtml = await file.text();
+    show(file.name, chosenHtml);
+    const title = document.getElementById('title') as HTMLInputElement;
+    if (title.value === '') {
+      title.value = titleOf(chosenHtml);
+    }
+  }
+
+  /** Sends the file. Only ever reached with a signed-in maker. */
+  async function send(): Promise<void> {
+    const title = (document.getElementById('title') as HTMLInputElement).value;
+    const description = (document.getElementById('description') as HTMLTextAreaElement).value;
+
+    const response = await fetch(new URL('/submit', api), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ title, description, html: chosenHtml }),
+    });
+    const body = await response.json();
+
+    if (response.status === 201) {
+      auth.hidden = true;
+      status.textContent = `Submitted. Your tool is pending review.`;
+      return;
+    }
+    if (response.status === 409) {
+      status.textContent = `That exact file is already published as ${body.existing}.`;
+      return;
+    }
+    status.textContent = body.error ?? 'Submission failed.';
+  }
+
+  input.addEventListener('change', () => {
+    void handle(input.files?.[0]);
+  });
+
+  details.addEventListener('submit', (e) => {
+    e.preventDefault();
+    void (async () => {
+      if (chosenHtml === '') {
+        status.textContent = 'Choose a file first.';
+        return;
+      }
+
+      const session = await (await fetch(new URL('/session', api), { headers: authHeaders() })).json();
+      if (!session.maker) {
+        auth.hidden = false;
+        status.textContent = 'Sign in to finish submitting. Nothing has been sent yet.';
+        return;
+      }
+      await send();
+    })();
+  });
+
+  signin.addEventListener('click', () => {
+    void (async () => {
+      const signedIn = await (
+        await fetch(new URL('/session', api), { method: 'POST', headers: authHeaders() })
+      ).json();
+      sessionStorage.setItem(TOKEN_KEY, signedIn.token);
+      await send();
+    })();
+  });
+
+  for (const event of ['dragenter', 'dragover'] as const) {
+    drop.addEventListener(event, (e) => {
+      e.preventDefault();
+      drop.classList.add('over');
+    });
+  }
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('over');
+    void handle(e.dataTransfer?.files?.[0]);
+  });
+</script>
+
+<style>
+  .back { font-size: .85rem; margin: 0 0 1.5rem; }
+  .back a { color: var(--dim); text-decoration: none; }
+  h1 { font-size: 2rem; }
+  .warn {
+    border: 1px solid var(--accent); border-radius: 8px;
+    padding: .8rem 1rem; font-size: .9rem;
+  }
+  .drop {
+    border: 2px dashed var(--line); border-radius: 12px;
+    padding: 2rem 1.5rem; text-align: center;
+  }
+  .drop.over { border-color: var(--accent); }
+  .drop label { display: block; font-weight: 600; margin-bottom: .8rem; }
+  .hint { color: var(--dim); font-size: .85rem; margin: .8rem 0 0; }
+  .chosen { font-size: .9rem; color: var(--dim); margin: 1rem 0 .5rem; }
+  .field { margin: 1.2rem 0; }
+  .field label { display: block; font-weight: 600; font-size: .9rem; margin-bottom: .3rem; }
+  .field input, .field textarea {
+    width: 100%; padding: .6rem; font: inherit; background: transparent;
+    color: var(--fg); border: 1px solid var(--line); border-radius: 8px;
+  }
+  .submit button, #signin {
+    font: inherit; font-weight: 600; padding: .55rem 1.2rem; cursor: pointer;
+    background: transparent; color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 8px;
+  }
+  .prompt { color: var(--dim); font-size: .9rem; margin: 1rem 0 .5rem; }
+  .status { color: var(--ok); font-weight: 600; font-size: .9rem; min-height: 1.5rem; }
+  #preview iframe {
+    width: 100%; height: 30rem; border: 1px solid var(--line);
+    border-radius: 10px; background: var(--bg); display: block; margin-top: .5rem;
+  }
+</style>

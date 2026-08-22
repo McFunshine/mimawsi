@@ -298,6 +298,21 @@ Actions allowance both depend on a public GitHub repository.
 **MUST** keep the catalogue operable without JavaScript for browsing and downloading.
 **Reason:** Astro ships no JavaScript by default and the catalogue is static; preserving this makes AC-56 nearly free and keeps the site usable in locked-down environments — the same audience the product exists for.
 
+### RULE-46
+**Covers:** AC-38, AC-54 (indirectly — the swap must not weaken any control)
+**MUST** reach storage, identity, scanning and notification only through a declared port, and **MUST** hold every adapter behind that port — fake or real — to the same contract test suite, which **MUST NOT** be weakened when a real adapter replaces a fake.
+**Reason:** The build starts as a skeleton with all four boundaries faked and every later phase is a swap. If the suite that proved the fake correct is edited to accommodate the real adapter, the swap stops being verifiable and the skeleton stops being evidence of anything. Holding the contract fixed is what lets phase 0 be assembled quickly and still be trusted at cp-5.
+
+### RULE-47
+**Covers:** all — it is the end-to-end guard
+**MUST** keep TC-T01, the tracer journey, passing from cp-0 onwards, and **MUST NOT** amend it to accommodate a change made beneath it. A phase that breaks it has broken the product, not the test. Before it first passes it may still be corrected — an oracle that never expressed its own stated intent is a defect in the test, not a renegotiation of it — and any such correction **MUST** be recorded in the commit with the reason. After cp-0 the file is frozen.
+**Reason:** The value of a tracer is that it is written once, against the outside of the system, and never renegotiated. A journey test that gets edited each time an adapter changes is a description of the current implementation rather than a check on it, and it will not notice the day the path stops working end to end.
+
+### RULE-48
+**Covers:** project-wide — makes the boundaries in Design mechanically enforced
+**MUST** lay the repository out as npm workspaces whose dependency graph encodes the security boundaries: `site` and `runner` may depend on `domain` alone; `lambdas` may depend on `domain`, `ports` and one adapter; only `adapters-aws` may depend on the AWS SDK; `ports` may depend on `domain` alone; `domain` may depend on nothing. The test project stays outside the workspace set.
+**Reason:** The Design section states that the catalogue holds no credentials and that the pipeline never reaches DynamoDB directly. Left as prose those are honour-system rules that any future change can breach silently. Expressed as dependencies they cannot be breached without editing a `package.json`, which is visible in review. Keeping tests outside the workspaces preserves their black-box character — a test that can import product internals eventually will.
+
 ## Cross-Reference
 
 | AC | Rules | AC | Rules |

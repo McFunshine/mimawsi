@@ -1,0 +1,12 @@
+{
+  "name": "@mimawsi/lambdas",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "node --experimental-strip-types src/serve.ts" },
+  "dependencies": {
+    "@mimawsi/adapters-fake": "*",
+    "@mimawsi/domain": "*",
+    "@mimawsi/ports": "*"
+  }
+}

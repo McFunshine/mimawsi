@@ -1,0 +1,23 @@
+---
+import Base from '../layouts/Base.astro';
+import ToolCard from '../components/ToolCard.astro';
+import { publishedTools } from '../data/tools';
+---
+<Base title="mimawsi — Made It, Might As Well Share It">
+  <h1>mimawsi</h1>
+  <p class="tag">Made It, Might As Well Share It</p>
+  <p class="lede">
+    A catalogue of small, single-file tools. Download one, double-click it, and it
+    works — offline, forever, with nothing to install and nothing sent anywhere.
+  </p>
+
+  <h2 class="section">Tools</h2>
+  {publishedTools.map((tool) => <ToolCard tool={tool} />)}
+</Base>
+
+<style>
+  .section {
+    font-size: .8rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--dim); margin: 0 0 .8rem; font-weight: 600;
+  }
+</style>

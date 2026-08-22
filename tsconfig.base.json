@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noEmit": true,
+    // Node runs these files directly via type-stripping, so imports keep their
+    // real .ts extensions rather than pretending to be built output.
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true
+  }
+}

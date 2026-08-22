@@ -23,6 +23,7 @@ specs/csp/                  the safety mechanism, run on all three engines
 specs/catalogue/            browse, search, try, download
 specs/api/                  Lambda endpoints via the `request` fixture
 specs/a11y/                 axe scans; the a11y contract is the testability contract
+specs/tracer/               TC-T01, the one journey that spans every stage
 ```
 
 Two reference documents, both outside this directory:
@@ -30,6 +31,9 @@ Two reference documents, both outside this directory:
 - `../docs/mimawsi-behaviour.md` — the testability contract and the deliberate
   decisions tests must match rather than guess at.
 - `../docs/test-plan.md` — case IDs and their acceptance-criteria coverage.
+
+Port contract suites are **not** here. They are Vitest unit tests living beside the ports in
+`../src/ports/` (RULE-32). Playwright owns end-to-end; Vitest owns units.
 
 ## MUST
 
@@ -63,6 +67,8 @@ Two reference documents, both outside this directory:
 - **No magic values in specs.** The policy string lives in `support/policy.ts`; the URL lives in `baseURL`; timeouts live in `playwright.config.ts`.
 - **No real submitted tool files committed as fixtures.** Fixture tools are authored here, in the spec, and kept minimal.
 - **No new tooling without being asked.** Dev dependencies are `@playwright/test`, `@axe-core/playwright`, `typescript`, `@types/node`. No ESLint, no Prettier, no Faker.
+- **No amending TC-T01.** The tracer journey is written once and never renegotiated (RULE-47). If it goes red, the path is broken — fix the product, not the test.
+- **No editing a port's contract suite to make a real adapter pass** (RULE-46). If the real adapter cannot pass it unchanged, the port is wrong. Say so.
 - **No exploratory files committed** — nothing whose only job is dumping HTML or probing structure.
 
 ## Environment

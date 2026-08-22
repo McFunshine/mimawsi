@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Word Counter</title>
+<style>
+  :root{--bg:#fdfcfa;--fg:#1a1a1a;--dim:#6b6b6b;--line:#e3e0da;--accent:#b8452f}
+  @media (prefers-color-scheme:dark){:root{--bg:#141614;--fg:#ececec;--dim:#9a9a9a;--line:#2c302c;--accent:#e88b6f}}
+  *{box-sizing:border-box}
+  body{margin:0;padding:1.5rem;background:var(--bg);color:var(--fg);
+    font:16px/1.6 ui-sans-serif,system-ui,-apple-system,sans-serif}
+  main{max-width:40rem;margin:0 auto}
+  h1{font-size:1.6rem;margin:0 0 1rem;letter-spacing:-.03em}
+  label{display:block;font-size:.85rem;color:var(--dim);margin-bottom:.3rem}
+  textarea{width:100%;min-height:12rem;padding:.8rem;font:inherit;
+    background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:8px}
+  dl{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:1.2rem 0}
+  div.stat{border:1px solid var(--line);border-radius:8px;padding:.7rem}
+  dt{font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+  dd{margin:0;font-size:1.6rem;font-weight:700;letter-spacing:-.02em}
+  button{font:inherit;font-weight:600;padding:.55rem 1.1rem;cursor:pointer;
+    background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:8px}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Word Counter</h1>
+  <label for="text">Your text</label>
+  <textarea id="text" autofocus></textarea>
+  <dl>
+    <div class="stat"><dt>Words</dt><dd id="words">0</dd></div>
+    <div class="stat"><dt>Characters</dt><dd id="chars">0</dd></div>
+    <div class="stat"><dt>Lines</dt><dd id="lines">0</dd></div>
+  </dl>
+  <button id="save" type="button">Download counts</button>
+</main>
+<script>
+  const text = document.getElementById('text');
+  const counts = () => {
+    const value = text.value;
+    return {
+      words: (value.match(/\S+/g) || []).length,
+      chars: value.length,
+      lines: value === '' ? 0 : value.split('\n').length,
+    };
+  };
+  const render = () => {
+    const c = counts();
+    document.getElementById('words').textContent = String(c.words);
+    document.getElementById('chars').textContent = String(c.chars);
+    document.getElementById('lines').textContent = String(c.lines);
+  };
+  text.addEventListener('input', render);
+  document.getElementById('save').addEventListener('click', () => {
+    const c = counts();
+    const body = `words: ${c.words}\ncharacters: ${c.chars}\nlines: ${c.lines}\n`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([body], { type: 'text/plain' }));
+    a.download = 'word-counts.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  render();
+</script>
+</body>
+</html>

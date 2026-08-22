@@ -2,20 +2,12 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { TOOL_CSP } from './policy';
-
+import { injectCsp } from '../../packages/injector/src/index.ts';
 /**
- * Stand-in for the publish-time CSP injector (task-1.5 / RULE-45). Once the real
- * parse5 injector exists, this function MUST delegate to it rather than build its
- * own markup — RULE-45 exists so the injector and this harness cannot diverge.
+ * The real injector, not a copy of it. Whatever task-1.5 replaces the
+ * implementation with, these specs test that and nothing else (RULE-45).
  */
-export function injectCsp(toolHtml: string): string {
-  const meta = `<meta http-equiv="Content-Security-Policy" content="${TOOL_CSP}">`;
-  if (/<head[^>]*>/i.test(toolHtml)) {
-    return toolHtml.replace(/<head[^>]*>/i, (head) => `${head}${meta}`);
-  }
-  return `<!doctype html><html><head>${meta}</head><body>${toolHtml}</body></html>`;
-}
+export { injectCsp } from '../../packages/injector/src/index.ts';
 
 /** Writes a published tool to disk and returns the `file://` URL a downloader would open. */
 export async function publishToDisk(toolHtml: string, name = 'tool.html'): Promise<string> {

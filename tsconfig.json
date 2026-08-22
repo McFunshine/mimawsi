@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node", "vitest/globals"],
+    "paths": {
+      "@mimawsi/domain": ["./packages/domain/src/index.ts"],
+      "@mimawsi/ports": ["./packages/ports/src/index.ts"],
+      "@mimawsi/ports/contracts": ["./packages/ports/src/contracts.ts"]
+    },
+    "baseUrl": "."
+  },
+  "include": ["packages/**/*.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "tests"]
+}

@@ -1,0 +1,45 @@
+---
+import type { Tool } from '@mimawsi/domain';
+
+interface Props {
+  tool: Tool;
+}
+const { tool } = Astro.props;
+const { title, description, tags } = tool.metadata;
+const id = tool.id.value;
+---
+{/*
+  Every control carries the tool's title in its accessible name, so a test never
+  needs .nth() to tell two cards apart. No test ids here, and there never will be
+  — if a test cannot reach something, that is a bug on this side. Braced comment,
+  not an HTML one: HTML comments ship to the browser, these do not.
+*/}
+<article aria-labelledby={`tool-${id}`}>
+  <h2 id={`tool-${id}`}>{title}</h2>
+  <p class="desc">{description}</p>
+  <ul class="tags">
+    {tags.map((tag) => <li>{tag}</li>)}
+  </ul>
+  <p class="actions">
+    <a class="primary" href={`/run/${id}`}>Try {title}</a>
+    <a href={`/tools/${id}.html`} download={`${id}.html`}>Download {title}</a>
+  </p>
+</article>
+
+<style>
+  article {
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 1.2rem 1.4rem; margin-bottom: 1rem;
+  }
+  h2 { margin: 0; font-size: 1.15rem; letter-spacing: -.02em; }
+  .desc { margin: .4rem 0 .8rem; color: var(--dim); font-size: .95rem; }
+  .tags { display: flex; gap: .4rem; list-style: none; padding: 0; margin: 0 0 1rem; }
+  .tags li {
+    font-size: .75rem; color: var(--dim);
+    border: 1px solid var(--line); border-radius: 999px; padding: .1rem .55rem;
+  }
+  .actions { display: flex; gap: 1rem; margin: 0; font-size: .9rem; }
+  .actions a { text-decoration: none; font-weight: 600; }
+  .actions a:hover { text-decoration: underline; }
+  .primary { color: var(--accent); }
+</style>

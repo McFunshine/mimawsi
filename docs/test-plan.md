@@ -17,6 +17,26 @@ IDs are permanent. Retire one by marking it withdrawn; never reuse the number.
 
 ---
 
+## Tracer — the whole path, end to end (`tests/specs/tracer/`)
+
+TC-T01 is the one test that spans every stage. It goes green at cp-0 against fakes and stays
+green through every phase afterwards; phases replace what sits beneath it and never amend it
+(RULE-47). If it goes red, the path is broken — do not "update the test to match".
+
+| ID | Case | Covers | Status |
+|---|---|---|---|
+| TC-T01 | The journey: browse a seeded tool, run it, download it, drop your own, submit, approve, republish, download again | the path itself; no single AC | **done** — green, frozen from here (RULE-47) |
+| TC-T02 | A dropped file runs locally with nothing transmitted | AC-10 | done — asserted inside TC-T01 step 4, not a separate spec |
+| TC-T03 | A file published by the skeleton is CSP-enforced from `file://` | AC-38, AC-54 | done — 3 engines |
+| TC-T04 | Every adapter behind a port passes that port's contract suite, fake and real alike | RULE-46 | done — 17 assertions, 4 fakes |
+
+TC-T04 runs in **Vitest**, not Playwright — port contracts are unit tests and RULE-32 places them there. It is the one entry in this plan that does not live under `tests/specs/`.
+
+TC-T04 is a suite, not a case: one contract per port, run against whichever adapter is
+wired in. Replacing a fake never edits it.
+
+---
+
 ## CSP — the downloaded file (`specs/csp/`) · runs on chromium + firefox + webkit
 
 | ID | Case | Covers | Status |
@@ -30,9 +50,9 @@ IDs are permanent. Retire one by marking it withdrawn; never reuse the number.
 | TC-CSP07 | `data:` and `blob:` images still load | AC-55 | done |
 | TC-CSP08 | A generated file still downloads | AC-55 | done |
 | TC-CSP09 | `localStorage` persists across a reload | AC-31c | done |
-| TC-CSP10 | Injector output on malformed markup still carries an enforced policy | AC-38 | blocked — needs the real injector |
-| TC-CSP11 | Injected meta is the first element in `<head>` | AC-38 | blocked |
-| TC-CSP12 | A tool that already declares a weaker CSP does not get to keep it | AC-38 | blocked |
+| TC-CSP10 | Injector output on malformed markup still carries an enforced policy | AC-38 | done — green on 3 engines (task-1.5, parse5) |
+| TC-CSP11 | Injected meta is the first element in `<head>` | AC-38 | done — green on 3 engines (task-1.5, parse5) |
+| TC-CSP12 | A tool that already declares a weaker CSP does not get to keep it | AC-38 | done — green on 3 engines (task-1.5, parse5) |
 
 ## Catalogue — the read path (`specs/catalogue/`)
 

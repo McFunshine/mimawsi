@@ -1,10 +1,10 @@
 /**
- * The verified CSP. Confirmed enforced from `file://` in Chrome 152 and Firefox
- * by the ED-1 spike (spikes/ed-1-csp/FINDINGS.md). Do not edit this string
- * without re-running specs/csp — it is the product's central safety control.
+ * The policy under test comes from the product, never from a copy kept here.
+ * RULE-45 exists because a second definition would let the injector and its
+ * regression test drift apart silently — and this is the control the entire
+ * promise rests on.
  */
-export const TOOL_CSP =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:";
+export { TOOL_CSP } from '../../packages/injector/src/index.ts';
 
 /** A host no tool may reach. Used as the exfiltration target in CSP specs. */
 export const EXFIL_ORIGIN = 'https://exfil.invalid';

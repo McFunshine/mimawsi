@@ -4,6 +4,7 @@
 *credentials*
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 
@@ -19,4 +20,17 @@ venv/
 # local
 .DS_Store
 /tmp/
-!.env.example
+
+# phase-0 local store — the fake StoragePort's directory
+.mimawsi-local/
+
+# Tools published by a run of the tracer. The catalogue is genuinely files on
+# disk in phase 0, so publishing writes here; global-teardown clears them, and
+# this makes sure an interrupted run cannot leave one behind to be committed.
+# The seed tool is committed and must survive.
+packages/site/public/tools/*.html
+!packages/site/public/tools/word-counter.html
+
+# Working notes, handovers and review responses — useful locally, not product.
+HANDOFF.md
+notes/

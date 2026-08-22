@@ -1,0 +1,44 @@
+---
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{title}</title>
+    <style is:global>
+      :root {
+        --bg: #fdfcfa; --fg: #1a1a1a; --dim: #6b6b6b;
+        --line: #e3e0da; --ok: #1a7f47; --accent: #b8452f;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          --bg: #141614; --fg: #ececec; --dim: #9a9a9a;
+          --line: #2c302c; --ok: #5fce93; --accent: #e88b6f;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--fg); padding: 2rem 1.5rem;
+        font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+      }
+      main { max-width: 46rem; margin: 0 auto; }
+      h1 { font-size: clamp(2.2rem, 8vw, 3.4rem); margin: 0; letter-spacing: -.04em; font-weight: 800; }
+      .tag { color: var(--accent); font-weight: 600; margin: .3rem 0 0; }
+      .lede { color: var(--dim); margin: 1.2rem 0 2.5rem; max-width: 34rem; }
+      a { color: inherit; }
+      a:focus-visible, button:focus-visible {
+        outline: 2px solid var(--accent); outline-offset: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>

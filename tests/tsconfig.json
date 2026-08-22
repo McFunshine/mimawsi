@@ -3,8 +3,13 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2022", "DOM"],
-    "types": ["node"],
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "types": [
+      "node"
+    ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
@@ -12,10 +17,20 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@fixtures/*": ["fixtures/*"],
-      "@pages/*": ["pages/*"],
-      "@specs/*": ["specs/*"]
-    }
+      "@fixtures/*": [
+        "fixtures/*"
+      ],
+      "@pages/*": [
+        "pages/*"
+      ],
+      "@specs/*": [
+        "specs/*"
+      ]
+    },
+    "allowImportingTsExtensions": true
   },
-  "include": ["**/*.ts", "scripts/*.mjs"]
+  "include": [
+    "**/*.ts",
+    "scripts/*.mjs"
+  ]
 }

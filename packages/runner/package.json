@@ -1,0 +1,7 @@
+{
+  "name": "@mimawsi/runner",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "node src/serve.mjs" }
+}

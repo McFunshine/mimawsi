@@ -19,6 +19,20 @@ tasks:
       safety: "cd tests && npm run test:csp   # chromium + firefox + webkit"
       typecheck: "cd tests && npm run typecheck"
     skill: "Use the implement-test-case skill with a case ID; it explores the running site before writing any test code."
+    tracer: >
+      TC-T01 is the tracer journey. It goes green at cp-0 against fakes and MUST be green at
+      every checkpoint thereafter (RULE-47). No phase may amend it — phases replace what sits
+      beneath it. Its failure means the path is broken, not that the test is stale.
+    ports:
+      Storage: "phase-0 local directory  ->  task-3.5 S3 + DynamoDB"
+      Identity: "phase-0 stub user       ->  task-3.4 Google OAuth"
+      Scanner: "phase-0 always-passes    ->  task-4.2 semgrep in Actions"
+      Notifier: "phase-0 console log     ->  task-5.4 SES"
+      Injector: "phase-0 string replace  ->  task-1.5 parse5 (RULE-45)"
+    port_contract: >
+      Every adapter, fake or real, passes the same contract suite. Replacing a fake never
+      edits that suite — if the real adapter cannot pass it unchanged, the port is wrong
+      (RULE-46).
 
   assumptions:
     - "The repository is empty and not yet under git; task-1.1 creates it. Nothing here can inherit an existing convention."
@@ -53,6 +67,16 @@ tasks:
       reason: "Phase 5's checkpoint requires real tools to exercise the pipeline, and the operator supplies them. It is a content workstream on the critical path, tracked in spec/design-inventory.md section 6.5, not an engineering task."
       alternatives: ["Model it as a task — rejected: no code artifact, and it is not the implementing agent's work"]
 
+    - id: dec-6
+      decision: "A phase-0 tracer sits in front of everything, claiming no acceptance criterion"
+      reason: "The six phases complete one pipeline stage at a time, so nothing travelled the whole path until cp-5 — 33 tasks in. Phase 0 makes the journey visible on day one with all four boundaries faked and no AWS, which turns phases 1 to 6 from 'build the stage' into 'replace one fake', each verified by a contract suite that does not change. It deliberately covers no AC: proving a criterion against a fake would be a false green."
+      alternatives: ["Re-cut all 39 tasks as vertical slices — rejected: discards a reviewed plan and its coverage proof for a benefit phase 0 already delivers", "Leave the plan and add the journey test as blocked until cp-5 — rejected: that is the problem, not a fix"]
+
+    - id: dec-7
+      decision: "npm workspaces with the dependency graph drawn to match the security boundaries; tests stay standalone; Astro from phase 0"
+      reason: "The Design section's boundaries — catalogue holds no credentials, pipeline never touches DynamoDB — become build-enforced rather than honour-system. Astro from the start because it decides layout, routing and build output: faking it would make phase 2 a rewrite rather than a swap, and its zero-JavaScript default is what makes RULE-33 nearly free. The runner gets its own package because it must serve from a separate origin, which is a real security boundary and is therefore run on a second local port in phase 0 too."
+      alternatives: ["Flat directories — rejected: shared types travel by relative path and no boundary is enforceable", "Hand-written HTML in phase 0 — rejected: phase 2 would delete it and every test written against it"]
+
   coverage_deferrals: []
 
   phases:
@@ -65,14 +89,14 @@ tasks:
         - id: task-0.1
           name: "Define the four ports and their fakes"
           description: "Storage, Identity, Scanner and Notifier as TypeScript interfaces, each with an in-memory or local-directory fake. Shapes are discovered from how task-0.2's journey uses them, not designed up front. Each port ships a contract test suite that its fake passes and that every later real adapter must also pass unchanged — that suite is what makes swapping a fake for AWS safe."
-          artifact: "src/ports/*.ts, src/adapters/fake/*.ts, tests/specs/ports/*.contract.spec.ts"
+          artifact: "packages/domain/, packages/ports/ (interfaces + Vitest contract suites, RULE-32), packages/adapters-fake/"
           covers:
             acs: []
-            rules: [RULE-33]
+            rules: [RULE-46, RULE-48]
             tests: [TC-T04]
           depends_on: []
           complexity: "M"
-          validation: "Every fake passes its port's contract suite. No fake imports from another port. Nothing under src/ imports from tests/."
+          validation: "Every fake passes its port's contract suite under Vitest. packages/site declares only @mimawsi/domain as a dependency. No package imports the AWS SDK. Nothing in packages/ imports from tests/."
 
         - id: task-0.2
           name: "Write the tracer journey test, and watch it fail"
@@ -80,7 +104,7 @@ tasks:
           artifact: "tests/specs/tracer/journey.spec.ts"
           covers:
             acs: []
-            rules: [RULE-33]
+            rules: [RULE-46, RULE-47]
             tests: [TC-T01]
           depends_on: [task-0.1]
           complexity: "S"
@@ -89,10 +113,10 @@ tasks:
         - id: task-0.3
           name: "Static catalogue page with one hardcoded tool"
           description: "A single page listing one seeded tool from a hardcoded JSON array, served by tests/scripts/serve.mjs. No search, no index, no CDN. Every control reachable by accessible role and name — the testability contract holds from the first line of markup."
-          artifact: "site/index.html, site/tools.json"
+          artifact: "packages/site/ (Astro), packages/site/src/data/tools.json"
           covers:
             acs: []
-            rules: [RULE-33]
+            rules: [RULE-33, RULE-46]
             tests: [TC-T01]
           depends_on: [task-0.2]
           complexity: "S"
@@ -101,10 +125,10 @@ tasks:
         - id: task-0.4
           name: "Sandboxed runner and download"
           description: "Try opens the tool in the sandboxed iframe; Download hands over the file. Both against the one seeded tool. This is the first place the sandbox boundary exists, so it is also the first place tests are forbidden from reaching inside it."
-          artifact: "site/ — runner and download controls"
+          artifact: "packages/runner/ (separate origin, port 4322), packages/site/ — Try and Download controls"
           covers:
             acs: []
-            rules: [RULE-33]
+            rules: [RULE-46]
             tests: [TC-T01, TC-T03]
           depends_on: [task-0.3]
           complexity: "M"
@@ -113,10 +137,10 @@ tasks:
         - id: task-0.5
           name: "Drop zone that runs a local file"
           description: "Drag a file in and it executes locally, immediately, with nothing transmitted. No size check, no type check, no scan — those are phase 3. The point is that the no-upload promise is observable from the first day rather than asserted at the end."
-          artifact: "site/ — drop zone"
+          artifact: "packages/site/ — drop zone"
           covers:
             acs: []
-            rules: [RULE-33]
+            rules: [RULE-46]
             tests: [TC-T01, TC-T02]
           depends_on: [task-0.4]
           complexity: "M"
@@ -125,10 +149,10 @@ tasks:
         - id: task-0.6
           name: "Submit to a local queue, approve from the CLI"
           description: "Submit writes through the Storage port to a local directory, attributed to the Identity fake's stub user; the Scanner fake passes everything; a CLI command performs the approve transition and the Notifier fake logs the decision. No Google, no Lambda, no DynamoDB, no semgrep, no SES, no admin UI."
-          artifact: "src/submit.ts, src/review-cli.ts"
+          artifact: "packages/lambdas/submit/, packages/review-cli/"
           covers:
             acs: []
-            rules: [RULE-33]
+            rules: [RULE-46]
             tests: [TC-T01]
           depends_on: [task-0.5]
           complexity: "M"
@@ -137,10 +161,10 @@ tasks:
         - id: task-0.7
           name: "Publish through a naive injector, and rebuild"
           description: "Approval injects the CSP and the rebuild puts the tool in the catalogue. The injector here is a deliberate placeholder — string replacement, not a parser — and it ships with TC-CSP10, TC-CSP11 and TC-CSP12 marked fixme against it. Those three are the definition of done for task-1.5, which replaces this with the parse5 injector and deletes nothing else."
-          artifact: "src/publish/inject-csp.ts (placeholder)"
+          artifact: "packages/injector/ (string-replace placeholder; task-1.5 swaps in parse5)"
           covers:
             acs: []
-            rules: [RULE-33, RULE-45]
+            rules: [RULE-45, RULE-46]
             tests: [TC-T01, TC-T03]
           depends_on: [task-0.6]
           complexity: "M"
@@ -215,6 +239,7 @@ tasks:
             acs: [AC-38]
             tests: [TC-CSP10, TC-CSP11, TC-CSP12]
             rules: [RULE-20, RULE-21, RULE-22, RULE-45]
+          retires: "Injector — the phase-0 string-replace placeholder. TC-CSP10, TC-CSP11 and TC-CSP12 go from fixme to green here."
           depends_on: [task-1.2]
           complexity: "M"
           validation: "Unit tests assert the meta element is first in head, the directive string matches exactly, and a malformed file is rejected rather than silently passed through."
@@ -391,6 +416,7 @@ tasks:
             acs: [AC-18, AC-20, AC-21, AC-22]
             tests: [TC-W08, TC-W10, TC-W11, TC-W12, TC-W13]
             rules: [RULE-7, RULE-8, RULE-9, RULE-13]
+          retires: "Identity — the phase-0 stub user. The Identity contract suite must pass unchanged."
           depends_on: [task-1.3]
           complexity: "L"
           validation: "A forged token is rejected. Second sign-in does not re-prompt for a username. Cookie carries all three attributes."
@@ -403,6 +429,7 @@ tasks:
             acs: [AC-19, AC-23, AC-24, AC-25, AC-26, AC-27]
             tests: [TC-W09, TC-W14, TC-W15, TC-W16, TC-W17, TC-W18]
             rules: [RULE-10, RULE-11, RULE-12, RULE-13, RULE-34, RULE-35]
+          retires: "Storage — the phase-0 local directory. The Storage contract suite must pass unchanged."
           depends_on: [task-3.4]
           complexity: "L"
           validation: "Unauthenticated submit stores nothing and creates no row. Duplicate is rejected and links the existing tool. Rate limit tested at the 4th, 5th and 6th submission, and under concurrent requests to prove the conditional write holds."
@@ -454,6 +481,7 @@ tasks:
             acs: [AC-31, AC-31b, AC-31c]
             tests: [TC-R02, TC-CSP09, TC-R04]
             rules: [RULE-15, RULE-17, RULE-44]
+          retires: "Scanner — the phase-0 always-passes fake. The Scanner contract suite must pass unchanged."
           depends_on: [task-4.1]
           complexity: "M"
           validation: "Fixtures using fetch, XHR, sendBeacon and external src all match. A messy but network-free tool does not match. A tool using localStorage does not match and is not flagged."
@@ -576,6 +604,7 @@ tasks:
             acs: [AC-39, AC-40]
             tests: [TC-R12]
             rules: [RULE-28, RULE-30, RULE-37]
+          retires: "Notifier — the phase-0 console log. The Notifier contract suite must pass unchanged."
           depends_on: [task-5.2]
           complexity: "M"
           validation: "Both emails send and arrive. No email address or file content appears in any log."

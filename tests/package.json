@@ -7,7 +7,6 @@
     "test:csp": "playwright test specs/csp",
     "test:e2e": "playwright test --project=e2e-chromium",
     "typecheck": "tsc --noEmit",
-    "serve": "node scripts/serve.mjs",
     "report": "playwright show-report"
   },
   "devDependencies": {
