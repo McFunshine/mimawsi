@@ -1,0 +1,81 @@
+# Tests only. Deliberately no AWS credentials anywhere in this file — phase 0
+# runs entirely on fakes, and the deploy path is blocked on decisions recorded in
+# docs/ci-cd-setup.md. RULE-17a also forbids giving Actions direct credentials to
+# DynamoDB or the published S3 prefix, so the eventual deploy job will be
+# narrower than "sync everything".
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# Least privilege. The deploy job will need id-token: write for OIDC; this one
+# must never have it.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            tests/package-lock.json
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Install test dependencies
+        run: npm ci
+        working-directory: tests
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Typecheck tests
+        run: npm run typecheck
+        working-directory: tests
+
+      - name: Unit tests
+        run: npm test
+
+      # Playwright starts the catalogue, runner and api itself (webServer in
+      # playwright.config.ts), so there is nothing to launch here.
+      - name: Install browsers
+        run: npx playwright install --with-deps
+        working-directory: tests
+
+      - name: End-to-end tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/playwright-report/
+          retention-days: 7
+
+      # The tracer publishes real files and the teardown clears them. If anything
+      # is left behind, the reset is broken and a later deploy would ship a test
+      # fixture as product content.
+      - name: Working tree must be clean after tests
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Tests left changes in the working tree:"
+            git status --porcelain
+            exit 1
+          fi

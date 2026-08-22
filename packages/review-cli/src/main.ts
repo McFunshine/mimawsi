@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fakePorts } from '@mimawsi/adapters-fake';
 import { injectCsp } from '@mimawsi/injector';
+import { NoSuchSubmission, selectTarget } from './select-target.ts';
 import type { Tool } from '@mimawsi/domain';
 
 const STORE =
@@ -63,31 +64,16 @@ async function pending() {
   return queue;
 }
 
-/**
- * Picks the submission a command acts on and returns the arguments that follow it.
- *
- * Shared by approve and reject so both select the same way. Reject used to ignore
- * its argument entirely and always take the newest pending item, which meant
- * `review reject <id> <reason>` rejected the wrong submission and filed the id as
- * the reason. Selection and argument consumption belong together — that is what
- * stops the two commands drifting apart again.
- */
-function selectTarget<T extends { id: { value: string } }>(
-  queue: readonly T[],
-  args: readonly string[],
-): { target: T; rest: string[] } {
-  const positional = args.filter((arg) => arg !== '--latest');
-
-  if (args.includes('--latest')) {
-    return { target: queue[queue.length - 1] as T, rest: positional };
+/** selectTarget throws; the CLI exits with a message instead of a stack trace. */
+function select<T extends { id: { value: string } }>(queue: readonly T[], args: readonly string[]) {
+  try {
+    return selectTarget(queue, args);
+  } catch (error) {
+    if (error instanceof NoSuchSubmission) {
+      fail(error.message);
+    }
+    throw error;
   }
-
-  const [id, ...remaining] = positional;
-  const target = queue.find((submission) => submission.id.value === id);
-  if (!target) {
-    fail(`no pending submission ${id ?? ''}`);
-  }
-  return { target, rest: remaining };
 }
 
 switch (command) {
@@ -99,7 +85,7 @@ switch (command) {
   }
 
   case 'approve': {
-    const { target } = selectTarget(await pending(), rest);
+    const { target } = select(await pending(), rest);
 
     await ports.storage.setState(target.id, 'approved');
     const tool = await publish(target.id);
@@ -109,7 +95,7 @@ switch (command) {
   }
 
   case 'reject': {
-    const { target, rest: reasonArgs } = selectTarget(await pending(), rest);
+    const { target, rest: reasonArgs } = select(await pending(), rest);
 
     await ports.storage.setState(target.id, 'rejected');
     await ports.notifier.notify({

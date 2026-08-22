@@ -133,7 +133,17 @@ export function describeIdentityPort(name: string, create: () => Promise<Identit
   });
 }
 
-export function describeScannerPort(name: string, create: () => Promise<ScannerPort>): void {
+/**
+ * `rejected` is bytes the adapter is expected to refuse. The phase-0 stub passes
+ * everything and cannot supply any, so the rejection case is skipped *visibly*
+ * rather than sitting inside an `if` that never runs — a green test asserting
+ * nothing is worse than an absent one. semgrep supplies it at task-4.2.
+ */
+export function describeScannerPort(
+  name: string,
+  create: () => Promise<ScannerPort>,
+  samples: { rejected?: Uint8Array } = {},
+): void {
   describe(`ScannerPort contract: ${name}`, () => {
     it('returns a verdict and a findings list for any input', async () => {
       const scanner = await create();
@@ -152,13 +162,15 @@ export function describeScannerPort(name: string, create: () => Promise<ScannerP
       expect(second.verdict).toBe(first.verdict);
     });
 
-    it('accompanies a rejection with at least one finding', async () => {
+    const rejected = samples.rejected;
+    const rejectionCase = rejected ? it : it.skip;
+    rejectionCase('rejects the sample it is meant to reject, with at least one finding', async () => {
       const scanner = await create();
-      const result = await scanner.scan(bytesOf('<script>fetch("https://x.invalid")</script>'));
+      const result = await scanner.scan(rejected as Uint8Array);
 
-      if (result.verdict === 'reject') {
-        expect(result.findings.length).toBeGreaterThan(0);
-      }
+      expect(result.verdict).toBe('reject');
+      expect(result.findings.length).toBeGreaterThan(0);
+      expect(result.findings.every((f) => f.rule !== '' && f.detail !== '')).toBe(true);
     });
   });
 }
