@@ -2,7 +2,11 @@
 import Base from '../layouts/Base.astro';
 
 // The API is a separate origin — a Function URL in production, a local port now.
-const apiOrigin = import.meta.env.PUBLIC_API_ORIGIN ?? 'http://localhost:4323';
+// As in run/[id].astro: localhost is a dev convenience, never something to publish.
+// With no API configured the form is still shown — running your file in the page is
+// local and works regardless — but submitting says so rather than failing silently.
+const apiOrigin =
+  import.meta.env.PUBLIC_API_ORIGIN ?? (import.meta.env.DEV ? 'http://localhost:4323' : null);
 ---
 <Base title="Share a tool — mimawsi">
   <p class="back"><a href="/">&larr; All tools</a></p>
@@ -36,7 +40,7 @@ const apiOrigin = import.meta.env.PUBLIC_API_ORIGIN ?? 'http://localhost:4323';
   */}
   <div id="preview"></div>
 
-  <form id="details" data-api={apiOrigin}>
+  <form id="details" data-api={apiOrigin ?? ''}>
     <p class="field">
       <label for="title">Title</label>
       <input id="title" name="title" type="text" required />

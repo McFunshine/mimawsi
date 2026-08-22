@@ -10,8 +10,9 @@ on:
     branches: ['**']
   pull_request:
 
-# Least privilege. The deploy job will need id-token: write for OIDC; this one
-# must never have it.
+# Least privilege by default. Only the deploy job widens this, and only to
+# id-token so it can exchange a GitHub identity token for temporary AWS
+# credentials. Nothing here ever holds a long-lived key.
 permissions:
   contents: read
 
@@ -79,3 +80,73 @@ jobs:
             git status --porcelain
             exit 1
           fi
+
+  # Publishes the catalogue only after the whole suite is green, and only from
+  # main. Deliberately narrow: the site bucket and a CDN invalidation, nothing
+  # else. RULE-17a keeps Actions away from DynamoDB and the published prefix, so
+  # this must never grow those permissions — publishing a tool goes through the
+  # results Lambda instead.
+  deploy:
+    needs: test
+    # Skips cleanly until the AWS role variable is set, so the build stays green
+    # while the IAM side is still being wired up. It starts deploying by itself
+    # the moment AWS_DEPLOY_ROLE_ARN exists — nothing here needs editing.
+    if: >-
+      github.event_name == 'push'
+      && github.ref == 'refs/heads/main'
+      && vars.AWS_DEPLOY_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      id-token: write
+
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Build catalogue
+        run: npm run build --workspace @mimawsi/site
+        env:
+          # Unset until the runner subdomain and the API exist. The pages omit the
+          # frame and the submit endpoint rather than emitting a localhost URL.
+          PUBLIC_RUNNER_ORIGIN: ${{ vars.PUBLIC_RUNNER_ORIGIN }}
+          PUBLIC_API_ORIGIN: ${{ vars.PUBLIC_API_ORIGIN }}
+
+      - name: Refuse to publish a build pointing at localhost
+        run: |
+          if grep -rn "localhost\|127\.0\.0\.1" packages/site/dist/; then
+            echo "::error::Build contains a local address; not publishing."
+            exit 1
+          fi
+          echo "No local addresses in the build."
+
+      - name: Assume the deploy role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Publish to S3
+        run: |
+          aws s3 sync packages/site/dist/ "s3://${{ vars.SITE_BUCKET }}/" \
+            --delete \
+            --cache-control "public, max-age=300, must-revalidate"
+
+      - name: Invalidate the CDN
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.CLOUDFRONT_DIST_ID }}" \
+            --paths "/*"

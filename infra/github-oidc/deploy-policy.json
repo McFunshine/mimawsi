@@ -1,0 +1,24 @@
+{
+  "_comment": "What the deploy role may do: write the site bucket and invalidate the CDN. Nothing else. RULE-17a forbids giving Actions credentials to DynamoDB or the published tool prefix - publishing a tool goes through the results Lambda instead - so this policy must not grow those. Substitute ACCOUNT_ID, SITE_BUCKET and DISTRIBUTION_ID.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListTheSiteBucketOnly",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": "arn:aws:s3:::SITE_BUCKET"
+    },
+    {
+      "Sid": "WriteSiteObjects",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:DeleteObject", "s3:GetObject"],
+      "Resource": "arn:aws:s3:::SITE_BUCKET/*"
+    },
+    {
+      "Sid": "InvalidateThisDistributionOnly",
+      "Effect": "Allow",
+      "Action": ["cloudfront:CreateInvalidation"],
+      "Resource": "arn:aws:cloudfront::ACCOUNT_ID:distribution/DISTRIBUTION_ID"
+    }
+  ]
+}

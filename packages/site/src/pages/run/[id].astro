@@ -15,7 +15,12 @@ const id = tool.id.value;
 
 // Tools execute on their own origin, never this one. Phase 0 uses a second local
 // port; production uses a second distribution. Same boundary either way.
-const runnerOrigin = import.meta.env.PUBLIC_RUNNER_ORIGIN ?? 'http://localhost:4322';
+// Falling back to localhost is right in dev and wrong in a build: a published page
+// pointing at 127.0.0.1 is broken for everyone but the person who built it. With no
+// runner configured the frame is omitted and the download — which is the actual
+// promise — still works.
+const runnerOrigin =
+  import.meta.env.PUBLIC_RUNNER_ORIGIN ?? (import.meta.env.DEV ? 'http://localhost:4322' : null);
 ---
 <Base title={`${title} — mimawsi`}>
   <p class="back"><a href="/">&larr; All tools</a></p>
@@ -27,13 +32,20 @@ const runnerOrigin = import.meta.env.PUBLIC_RUNNER_ORIGIN ?? 'http://localhost:4
     tool cannot reach this page's origin, storage or document (AC-5). Do not add
     allow-same-origin: it would hand back everything the sandbox is here to deny.
   */}
-  <iframe
-    title={`Running ${title}`}
-    src={`${runnerOrigin}/${id}.html`}
-    sandbox="allow-scripts allow-downloads"
-    referrerpolicy="no-referrer"
-    loading="eager"
-  ></iframe>
+  {runnerOrigin ? (
+    <iframe
+      title={`Running ${title}`}
+      src={`${runnerOrigin}/${id}.html`}
+      sandbox="allow-scripts allow-downloads"
+      referrerpolicy="no-referrer"
+      loading="eager"
+    ></iframe>
+  ) : (
+    <p class="pending">
+      Running a tool inside this page needs its own separate origin, which is not
+      live yet. Download it below — that is the real thing, and it works offline.
+    </p>
+  )}
 
   <p class="actions">
     <a href={`/tools/${id}.html`} download={`${id}.html`}>Download {title}</a>
@@ -58,4 +70,8 @@ const runnerOrigin = import.meta.env.PUBLIC_RUNNER_ORIGIN ?? 'http://localhost:4
   .actions a { color: var(--accent); text-decoration: none; }
   .actions a:hover { text-decoration: underline; }
   .note { color: var(--dim); font-size: .85rem; margin-top: .8rem; }
+  .pending {
+    border: 1px dashed var(--line); border-radius: 10px; padding: 1.5rem;
+    color: var(--dim); font-size: .9rem; margin: 0;
+  }
 </style>

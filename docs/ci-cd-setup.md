@@ -85,6 +85,88 @@ credentials anywhere in the workflow definition."*
    HTTPS and returns 403 for `mimawsi.com`. Any "deploy failed" signal from this
    machine may be the appliance, not AWS. Verify from elsewhere.
 
+## Wiring up the deploy — click by click
+
+The deploy job already exists in [ci.yml](../.github/workflows/ci.yml). It **skips
+itself** until `AWS_DEPLOY_ROLE_ARN` is set, so the build stays green while you do
+this, and starts deploying the moment the variable appears. Nothing in the
+workflow needs editing.
+
+Substitute your own values throughout: `ACCOUNT_ID`, `SITE_BUCKET`,
+`DISTRIBUTION_ID`, `REGION`. They are in your operator notes, not committed here.
+
+### Part 1 — AWS: tell it to recognise GitHub (once per account)
+
+You must be signed in as an **admin**, not the `mimawsi-deploy` user — that user
+has no IAM permissions and will be refused.
+
+1. IAM → **Identity providers** → **Add provider**
+2. Choose **OpenID Connect**
+3. Provider URL: `https://token.actions.githubusercontent.com` → **Get thumbprint**
+4. Audience: `sts.amazonaws.com`
+5. **Add provider**
+
+This is the "I recognise passports from that office" step. AWS now fetches
+GitHub's public keys and can verify that a token genuinely came from GitHub.
+
+### Part 2 — AWS: create the role and say who may use it
+
+1. IAM → **Roles** → **Create role**
+2. Trusted entity type: **Web identity**
+3. Identity provider: the one you just added · Audience: `sts.amazonaws.com`
+4. Skip the permissions screen for now → name it **`mimawsi-github-deploy`** → create
+5. Open the role → **Trust relationships** → **Edit trust policy** → paste
+   [trust-policy.json](../infra/github-oidc/trust-policy.json), substituting `ACCOUNT_ID`
+6. **Permissions** → **Add permissions** → **Create inline policy** → JSON → paste
+   [deploy-policy.json](../infra/github-oidc/deploy-policy.json), substituting the three
+   placeholders. Name it `mimawsi-site-deploy`.
+7. Copy the role ARN from the summary — `arn:aws:iam::ACCOUNT_ID:role/mimawsi-github-deploy`
+
+Step 5 is the one that matters. That trust policy is the entire security boundary:
+only a workflow on `refs/heads/main` of this repository can assume the role.
+Everything else — a fork, a pull request, another branch — presents a different
+`sub` and is refused.
+
+### Part 3 — GitHub: four variables, zero secrets
+
+Repository → **Settings** → **Secrets and variables** → **Actions** → **Variables**
+tab → **New repository variable**:
+
+| Name | Value |
+|---|---|
+| `AWS_DEPLOY_ROLE_ARN` | the ARN from step 7 |
+| `AWS_REGION` | your region, e.g. `eu-north-1` |
+| `SITE_BUCKET` | the site bucket name |
+| `CLOUDFRONT_DIST_ID` | the distribution id |
+
+They go under **Variables**, not Secrets. None is a credential: an ARN is inert to
+anyone whose token does not match the trust policy. Leave
+`PUBLIC_RUNNER_ORIGIN` and `PUBLIC_API_ORIGIN` unset — the build omits the frame
+and the submit endpoint rather than publishing a localhost URL, and the workflow
+fails the build outright if a local address ever reaches `dist/`.
+
+### Part 4 — Deploy
+
+Push anything to `main`, or re-run the last workflow. The deploy job stops
+skipping and runs: build → check for local addresses → assume role → sync →
+invalidate.
+
+Expect the site to change from the smoke-test placeholder to the catalogue.
+**Browsing and downloading will work; running a tool in the page and submitting
+will not** — those need the runner origin (task-2.3) and the API (task-3.4/3.5),
+which do not exist yet.
+
+### If it fails
+
+- `Not authorized to perform sts:AssumeRoleWithWebIdentity` — the trust policy
+  `sub` does not match. It is case-sensitive and must be the exact repo path.
+- `Could not load credentials from any providers` — `AWS_DEPLOY_ROLE_ARN` is
+  missing or misspelt, or was created as a Secret instead of a Variable.
+- `AccessDenied` on `s3:PutObject` — the bucket name in the permissions policy
+  does not match `SITE_BUCKET`.
+
+---
+
 ## Suggested order
 
 1. Public repo + push + CI green. ← *do this now*

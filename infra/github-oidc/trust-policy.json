@@ -1,0 +1,19 @@
+{
+  "_comment": "Who may assume the deploy role. Substitute ACCOUNT_ID. The sub condition is the whole point: only a workflow running on refs/heads/main of this exact repository can assume it. A fork, a pull request, or another branch produces a different sub and is refused.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+          "token.actions.githubusercontent.com:sub": "repo:McFunshine/mimawsi:ref:refs/heads/main"
+        }
+      }
+    }
+  ]
+}
