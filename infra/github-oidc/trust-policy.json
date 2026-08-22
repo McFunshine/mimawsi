@@ -1,5 +1,5 @@
 {
-  "_comment": "Who may assume the deploy role. Substitute ACCOUNT_ID. The sub condition is the whole point: only a workflow running on refs/heads/main of this exact repository can assume it. A fork, a pull request, or another branch produces a different sub and is refused.",
+  "_comment": "Who may assume the deploy role. Substitute ACCOUNT_ID, OWNER_ID and REPO_ID. Note the subject format: GitHub embeds immutable numeric ids as owner@id/repo@id. A policy written against the older repo:OWNER/REPO form silently never matches, and AWS reports only 'Not authorized' with no reason. Read the real value from a run rather than assuming: decode the id token's sub claim, see the git history of .github/workflows/ci.yml for a step that does it.",
   "Version": "2012-10-17",
   "Statement": [
     {
@@ -11,7 +11,7 @@
       "Condition": {
         "StringEquals": {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-          "token.actions.githubusercontent.com:sub": "repo:McFunshine/mimawsi:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:sub": "repo:OWNER@OWNER_ID/REPO@REPO_ID:ref:refs/heads/main"
         }
       }
     }
