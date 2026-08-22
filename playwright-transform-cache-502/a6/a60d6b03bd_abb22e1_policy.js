@@ -1,0 +1,12 @@
+// 1d5d7cbfe2edcad0ef73eae7549d449805ebb81e
+/**
+ * The policy under test comes from the product, never from a copy kept here.
+ * RULE-45 exists because a second definition would let the injector and its
+ * regression test drift apart silently — and this is the control the entire
+ * promise rests on.
+ */
+export { TOOL_CSP } from '../../packages/injector/src/index.ts';
+
+/** A host no tool may reach. Used as the exfiltration target in CSP specs. */
+export const EXFIL_ORIGIN = 'https://exfil.invalid';
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJUT09MX0NTUCIsIkVYRklMX09SSUdJTiJdLCJzb3VyY2VzIjpbInBvbGljeS50cyJdLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIFRoZSBwb2xpY3kgdW5kZXIgdGVzdCBjb21lcyBmcm9tIHRoZSBwcm9kdWN0LCBuZXZlciBmcm9tIGEgY29weSBrZXB0IGhlcmUuXG4gKiBSVUxFLTQ1IGV4aXN0cyBiZWNhdXNlIGEgc2Vjb25kIGRlZmluaXRpb24gd291bGQgbGV0IHRoZSBpbmplY3RvciBhbmQgaXRzXG4gKiByZWdyZXNzaW9uIHRlc3QgZHJpZnQgYXBhcnQgc2lsZW50bHkg4oCUIGFuZCB0aGlzIGlzIHRoZSBjb250cm9sIHRoZSBlbnRpcmVcbiAqIHByb21pc2UgcmVzdHMgb24uXG4gKi9cbmV4cG9ydCB7IFRPT0xfQ1NQIH0gZnJvbSAnLi4vLi4vcGFja2FnZXMvaW5qZWN0b3Ivc3JjL2luZGV4LnRzJztcblxuLyoqIEEgaG9zdCBubyB0b29sIG1heSByZWFjaC4gVXNlZCBhcyB0aGUgZXhmaWx0cmF0aW9uIHRhcmdldCBpbiBDU1Agc3BlY3MuICovXG5leHBvcnQgY29uc3QgRVhGSUxfT1JJR0lOID0gJ2h0dHBzOi8vZXhmaWwuaW52YWxpZCc7XG4iXSwibWFwcGluZ3MiOiJBQUFBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBLFNBQVNBLFFBQVEsUUFBUSxzQ0FBc0M7O0FBRS9EO0FBQ0EsT0FBTyxNQUFNQyxZQUFZLEdBQUcsdUJBQXVCIiwiaWdub3JlTGlzdCI6W119

@@ -174,6 +174,13 @@ test.describe('a downloaded tool still works', () => {
     );
 
     await expect(page.getByText('runs: 1')).toBeVisible();
+
+    // Reloading before the write is observable makes this test lose a race it is
+    // not trying to test: the second run then reads nothing and counts 1 again.
+    // The property under test is that storage survives a reload, not how quickly
+    // it is flushed, so wait for the value to be readable before reloading.
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('runs'))).toBe('1');
+
     await page.reload();
     await expect(page.getByText('runs: 2')).toBeVisible();
   });

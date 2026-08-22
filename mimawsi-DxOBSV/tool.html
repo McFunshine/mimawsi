@@ -1,0 +1,14 @@
+<!DOCTYPE html><html lang="en"><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:"><title>Fixture tool</title></head>
+  <body>
+    <h1>Fixture tool</h1>
+    <p id="log">idle</p>
+    <script>
+      const log = (m) => { document.getElementById('log').textContent = m; };
+      
+        const seen = Number(localStorage.getItem('runs') ?? '0') + 1;
+        localStorage.setItem('runs', String(seen));
+        log('runs: ' + seen);
+      
+    </script>
+  
+</body></html>
