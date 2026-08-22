@@ -1,0 +1,41 @@
+{
+  "CallerReference": "mimawsi-runner-c0895c5f5009",
+  "Comment": "mimawsi runner origin: tools execute here, never on the catalogue origin (RULE-23)",
+  "Enabled": true,
+  "PriceClass": "PriceClass_100",
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "s3-tools",
+        "DomainName": "SITE_BUCKET.s3.eu-north-1.amazonaws.com",
+        "OriginPath": "/tools",
+        "OriginAccessControlId": "ORIGIN_ACCESS_CONTROL_ID",
+        "S3OriginConfig": {
+          "OriginAccessIdentity": ""
+        }
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "s3-tools",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": {
+      "Quantity": 2,
+      "Items": [
+        "GET",
+        "HEAD"
+      ],
+      "CachedMethods": {
+        "Quantity": 2,
+        "Items": [
+          "GET",
+          "HEAD"
+        ]
+      }
+    },
+    "Compress": true,
+    "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+    "ResponseHeadersPolicyId": "RUNNER_RESPONSE_HEADERS_POLICY_ID"
+  }
+}

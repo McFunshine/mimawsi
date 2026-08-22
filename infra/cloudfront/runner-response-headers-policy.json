@@ -1,0 +1,28 @@
+{
+  "Name": "mimawsi-runner-headers",
+  "Comment": "mimawsi runner: tool CSP + frame-ancestors. See infra/cloudfront.",
+  "SecurityHeadersConfig": {
+    "ContentSecurityPolicy": {
+      "Override": true,
+      "ContentSecurityPolicy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; frame-ancestors https://mimawsi.com https://www.mimawsi.com"
+    },
+    "ContentTypeOptions": {
+      "Override": true
+    },
+    "ReferrerPolicy": {
+      "Override": true,
+      "ReferrerPolicy": "no-referrer"
+    }
+  },
+  "CustomHeadersConfig": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Header": "cache-control",
+        "Value": "no-store",
+        "Override": true
+      }
+    ]
+  },
+  "_rationale": "Sent as a header as well as injected as a meta tag (task-2.3): a header cannot be edited by the file it governs. frame-ancestors is the half the tool cannot influence at all, and stops any other site framing a tool (RULE-23)."
+}
