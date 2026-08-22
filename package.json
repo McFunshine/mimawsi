@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "test:e2e": "npm --prefix tests test",
+    "test:e2e:ci": "CI=1 npm --prefix tests test",
     "test:all": "npm run typecheck && npm test && npm run test:e2e",
     "dev:site": "npm run dev --workspace @mimawsi/site",
     "dev:runner": "npm run dev --workspace @mimawsi/runner",

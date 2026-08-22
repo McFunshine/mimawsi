@@ -1,4 +1,5 @@
 import { test as base, expect } from '@playwright/test';
+import { resetLocalState } from '../reset-local-state';
 import { publishToDisk } from '../support/publish';
 
 export interface Violation {
@@ -34,7 +35,28 @@ interface Fixtures extends Oracles {
   openPublished: (toolHtml: string) => Promise<void>;
 }
 
-export const test = base.extend<{ oracles: Oracles } & Fixtures>({
+export const test = base.extend<{ oracles: Oracles; resetTracerState: void } & Fixtures>({
+  /**
+   * The tracer walks real state: it submits a file, approves it and publishes it.
+   * globalSetup clears that once per run, which is not enough — a retry started
+   * from whatever the failed attempt left behind. When an attempt got as far as
+   * publishing, the retry re-submitted the same bytes, hit the duplicate-file
+   * check and failed at a completely different step, hiding the original cause.
+   *
+   * Resetting per test makes a retry mean what it is supposed to mean. Scoped to
+   * the tracer because only it touches this state; the CSP specs publish into
+   * their own temp directories and must not be disturbed.
+   */
+  resetTracerState: [
+    async ({}, use, testInfo) => {
+      if (testInfo.project.name === 'tracer') {
+        await resetLocalState();
+      }
+      await use();
+    },
+    { auto: true },
+  ],
+
   // Never set `bypassCSP` on the context — it would switch off the thing under test.
   oracles: async ({ page }, use) => {
     const violations: Violation[] = [];

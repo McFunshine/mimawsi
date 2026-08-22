@@ -25,6 +25,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    # The browsers are already in this image, pinned to the same Playwright
+    # version as tests/package.json. Installing them per run cost ten and a half
+    # minutes of a twelve minute build — 94% of it — and downloaded a slightly
+    # different browser build each time, so "passes in CI" meant something
+    # marginally different every push. Bump this tag and the dependency together;
+    # a mismatch makes Playwright refuse to start rather than fail obscurely.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --user 1001
+
     steps:
       - uses: actions/checkout@v4
 
@@ -53,12 +63,9 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      # Playwright starts the catalogue, runner and api itself (webServer in
-      # playwright.config.ts), so there is nothing to launch here.
-      - name: Install browsers
-        run: npx playwright install --with-deps
-        working-directory: tests
-
+      # No browser install step: the container has them. Playwright starts the
+      # catalogue, runner and api itself (webServer in playwright.config.ts), so
+      # there is nothing to launch here either.
       - name: End-to-end tests
         run: npm run test:e2e
 

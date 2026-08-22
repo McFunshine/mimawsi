@@ -5,7 +5,7 @@
  * transitions. The journey test drives whichever exists — approving is approving,
  * and TC-T01 does not care which surface performs it.
  */
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fakePorts } from '@mimawsi/adapters-fake';
@@ -41,12 +41,16 @@ async function publish(id: { value: string }): Promise<Tool> {
 
   // Writing into src/ is what makes the dev server re-render — the local stand-in
   // for a catalogue rebuild and a CDN invalidation.
+  //
+  // Written to a sibling and renamed. Astro watches this file, and writing in
+  // place lets it read a half-written one: it sees a truncated module, restarts,
+  // and a navigation arriving mid-restart is aborted. rename is atomic on one
+  // filesystem, so the watcher observes the old file or the new one, never both.
   const published = await ports.storage.listPublished();
-  await writeFile(
-    join(SITE, 'src/data/published.json'),
-    `${JSON.stringify(published, null, 2)}\n`,
-    'utf8',
-  );
+  const indexPath = join(SITE, 'src/data/published.json');
+  const temporary = `${indexPath}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(published, null, 2)}\n`, 'utf8');
+  await rename(temporary, indexPath);
 
   return tool;
 }
