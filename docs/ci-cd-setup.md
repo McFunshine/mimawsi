@@ -102,9 +102,13 @@ has no IAM permissions and will be refused.
 
 1. IAM → **Identity providers** → **Add provider**
 2. Choose **OpenID Connect**
-3. Provider URL: `https://token.actions.githubusercontent.com` → **Get thumbprint**
+3. Provider URL: `https://token.actions.githubusercontent.com`
 4. Audience: `sts.amazonaws.com`
 5. **Add provider**
+
+There is no thumbprint step. Older guides tell you to click **Get thumbprint**;
+AWS removed that for well-known issuers and verifies GitHub's certificate chain
+itself. If you are following a tutorial that insists on it, the tutorial is stale.
 
 This is the "I recognise passports from that office" step. AWS now fetches
 GitHub's public keys and can verify that a token genuinely came from GitHub.
