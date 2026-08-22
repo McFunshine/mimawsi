@@ -1,0 +1,94 @@
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:">
+<title>ED-1 spike</title>
+<style>body{font:14px monospace}</style>
+<pre id="out">script did not run</pre>
+<script>
+const results = [];
+const violations = [];
+
+function render() {
+  document.getElementById('out').textContent =
+    'PROTOCOL: ' + location.protocol + '\n' +
+    '=== RESULTS ===\n' + results.join('\n') +
+    '\n=== CSP VIOLATION EVENTS (' + violations.length + ') ===\n' +
+    (violations.length ? violations.join('\n') : '(none fired)');
+}
+
+document.addEventListener('securitypolicyviolation', e => {
+  violations.push(e.violatedDirective + ' <- ' + (e.blockedURI || '?'));
+  render();
+});
+
+function log(name, verdict, detail) {
+  results.push(name.padEnd(26) + verdict.padEnd(10) + (detail || ''));
+  render();
+}
+
+// 0. inline script executed at all
+log('inline-script', 'RAN', 'script-src unsafe-inline works');
+
+// 1. fetch
+try {
+  fetch('https://example.com/probe')
+    .then(() => log('fetch', 'ALLOWED', 'request was NOT blocked'))
+    .catch(e => log('fetch', 'REJECTED', e.name + ': ' + e.message));
+} catch (e) { log('fetch', 'THREW', e.message); }
+
+// 2. XMLHttpRequest
+try {
+  const x = new XMLHttpRequest();
+  x.open('GET', 'https://example.com/probe2');
+  x.onerror = () => log('xhr', 'REJECTED', 'onerror fired');
+  x.onload = () => log('xhr', 'ALLOWED', 'response received');
+  x.send();
+} catch (e) { log('xhr', 'THREW', e.message); }
+
+// 3. sendBeacon
+try {
+  const ok = navigator.sendBeacon('https://example.com/probe3', 'x');
+  log('sendBeacon', ok ? 'ALLOWED' : 'REFUSED', 'returned ' + ok);
+} catch (e) { log('sendBeacon', 'THREW', e.message); }
+
+// 4. external image
+const img = new Image();
+img.onload = () => log('img-external', 'ALLOWED', 'loaded');
+img.onerror = () => log('img-external', 'BLOCKED', 'error fired');
+img.src = 'https://example.com/x.png';
+
+// 5. data: image (must be ALLOWED for tools to work)
+const d = new Image();
+d.onload = () => log('img-data', 'ALLOWED', 'loaded ok');
+d.onerror = () => log('img-data', 'BLOCKED', 'PROBLEM: tools need this');
+d.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+// 6. blob: URL + download link  (AC-55 depends on this)
+try {
+  const blob = new Blob(['hello'], {type: 'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'out.txt';
+  document.body.appendChild(a);
+  a.click();
+  log('blob-download', 'NO-THROW', 'createObjectURL + click ok: ' + url.slice(0, 12));
+} catch (e) { log('blob-download', 'THREW', e.message); }
+
+// 7. blob: image
+const b = new Image();
+b.onload = () => log('img-blob', 'ALLOWED', 'loaded ok');
+b.onerror = () => log('img-blob', 'BLOCKED', '');
+b.src = URL.createObjectURL(new Blob(
+  [Uint8Array.from(atob('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'), c => c.charCodeAt(0))],
+  {type: 'image/gif'}));
+
+// 8. eval (should be blocked: no 'unsafe-eval')
+try { (0, eval)('1+1'); log('eval', 'ALLOWED', 'unsafe-eval not required?'); }
+catch (e) { log('eval', 'BLOCKED', e.name); }
+
+setTimeout(() => {
+  document.getElementById('out').textContent =
+    'PROTOCOL: ' + location.protocol + '\n' +
+    '=== RESULTS ===\n' + results.join('\n') +
+    '\n=== CSP VIOLATION EVENTS (' + violations.length + ') ===\n' +
+    (violations.length ? violations.join('\n') : '(none fired)');
+}, 700);
+</script>

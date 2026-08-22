@@ -1,0 +1,22 @@
+# credentials — never commit
+*.csv
+*accessKeys*
+*credentials*
+.env
+.env.*
+*.pem
+*.key
+
+# build
+node_modules/
+dist/
+.astro/
+__pycache__/
+.venv/
+venv/
+.pytest_cache/
+
+# local
+.DS_Store
+/tmp/
+!.env.example

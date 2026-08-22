@@ -1,0 +1,45 @@
+<!doctype html>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>mimawsi</title>
+<style>
+  :root{--bg:#fdfcfa;--fg:#1a1a1a;--dim:#6b6b6b;--line:#e3e0da;--ok:#1a7f47;--accent:#b8452f}
+  @media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+    --bg:#141614;--fg:#ececec;--dim:#9a9a9a;--line:#2c302c;--ok:#5fce93;--accent:#e88b6f}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    display:grid;place-items:center;min-height:100vh;padding:2rem}
+  main{max-width:34rem;width:100%}
+  h1{font-size:clamp(2.4rem,9vw,4rem);margin:0;letter-spacing:-.04em;font-weight:800}
+  .tag{color:var(--accent);font-weight:600;margin:.3rem 0 0;font-size:clamp(1rem,3.5vw,1.25rem)}
+  p.lede{color:var(--dim);margin:1.4rem 0 2rem}
+  ul{list-style:none;padding:0;margin:0;border-top:1px solid var(--line)}
+  li{display:flex;justify-content:space-between;gap:1rem;padding:.6rem 0;
+     border-bottom:1px solid var(--line);font-size:.9rem}
+  li span:first-child{color:var(--dim)}
+  .ok{color:var(--ok);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85em}
+  footer{margin-top:2rem;color:var(--dim);font-size:.8rem}
+</style>
+<main>
+  <h1>mimawsi</h1>
+  <p class="tag">Made It, Might As Well Share It</p>
+  <p class="lede">A catalogue of small, single-file tools. Download one, double-click it,
+     and it works — offline, forever, with nothing to install.</p>
+  <ul>
+    <li><span>Domain</span><span class="ok" id="host">—</span></li>
+    <li><span>TLS</span><span class="ok" id="tls">—</span></li>
+    <li><span>Delivered by</span><span>CloudFront → S3 (eu-north-1)</span></li>
+    <li><span>Outbound requests</span><span class="ok">blocked by CSP</span></li>
+    <li><span>Status</span><span>infrastructure smoke test</span></li>
+  </ul>
+  <footer>This page is itself one self-contained HTML file making zero network
+     requests — the same contract every tool in the catalogue will follow.</footer>
+</main>
+<script>
+  document.getElementById('host').textContent = location.hostname;
+  document.getElementById('tls').textContent =
+    location.protocol === 'https:' ? 'HTTPS ✓' : 'insecure (' + location.protocol + ')';
+</script>

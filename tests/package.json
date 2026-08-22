@@ -1,0 +1,19 @@
+{
+  "name": "mimawsi-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:csp": "playwright test specs/csp",
+    "test:e2e": "playwright test --project=e2e-chromium",
+    "typecheck": "tsc --noEmit",
+    "serve": "node scripts/serve.mjs",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,717 @@
+tasks:
+  feature: "mimawsi.com v1 — free catalogue of single-file, zero-install HTML tools"
+  review_verdict: "PASS"
+  organizing_principle: "walking_skeleton"
+
+  # Every task carries `covers.tests` — the case IDs from docs/test-plan.md that prove it.
+  # A task is not done because it looks done. It is done when its cases pass.
+  test_layer:
+    location: "tests/ — a standalone Playwright + TypeScript project"
+    plan: "docs/test-plan.md — stable case IDs, one row per case, mapped to acceptance criteria"
+    contract: "tests/AGENTS.md — binding MUST/SHOULD/WON'T for anyone writing a test here"
+    behaviour: "docs/mimawsi-behaviour.md — the testability contract and the deliberate oddities"
+    definition_of_done: >
+      Every case ID in the task's covers.tests is implemented, its row in docs/test-plan.md
+      reads `done`, and `cd tests && npm run typecheck && npx playwright test` passes. Report
+      the actual output. Never claim a green run you did not see.
+    commands:
+      all: "cd tests && npm test"
+      safety: "cd tests && npm run test:csp   # chromium + firefox + webkit"
+      typecheck: "cd tests && npm run typecheck"
+    skill: "Use the implement-test-case skill with a case ID; it explores the running site before writing any test code."
+
+  assumptions:
+    - "The repository is empty and not yet under git; task-1.1 creates it. Nothing here can inherit an existing convention."
+    - "An AWS account exists and the operator can create resources in an EU region."
+    - "A Google Cloud project can be created for OAuth client credentials."
+    - "A domain (mimawsi.com) is registered and its DNS is controllable."
+    - "The operator supplies seed tools; the catalogue cannot launch empty and no task produces them."
+
+  decisions:
+    - id: dec-1
+      decision: "walking_skeleton as the organizing principle"
+      reason: "The dominant uncertainty is whether the chain browser to Lambda to S3 to Actions to catalogue holds together, not any single component. Each security hotspot is addressed inside the phase that introduces its mechanism rather than deferred, so risk is still front-loaded where it lands."
+      alternatives: ["risk_first — rejected: builds the scanner before anything exists to scan", "layered — rejected: the system is not layered, it is a pipeline"]
+
+    - id: dec-2
+      decision: "Six phases rather than the soft limit of five"
+      reason: "74 acceptance criteria is a large feature. Splitting scanning from review keeps every phase at seven tasks or fewer and falls on a real boundary: automated analysis versus human decision. Padding or merging to hit five would have hidden that boundary."
+      alternatives: ["Five phases with eleven tasks in the pipeline phase — rejected as unreviewable"]
+
+    - id: dec-3
+      decision: "v1 could ship in two releases, at cp-5 and cp-6"
+      reason: "Everything through phase 5 is a working product: browse, try, download, share, review, publish. Phase 6 adds edits, reports, retention and erasure. Recommending the split explicitly rather than silently — but note that erasure and retention are legal obligations, so a public launch cannot skip phase 6. The split is for internal or invite-only use only."
+      alternatives: ["Single release — valid, just slower to first feedback"]
+
+    - id: dec-4
+      decision: "AC-38 (CSP injection) is built and tested in phase 1, not at its point of use in phase 5"
+      reason: "It is the product's central safety mechanism and was the subject of ED-1. Building the injector and its file:// regression test first means every subsequent phase runs against a verified control."
+      alternatives: ["Build it with the publish workflow in phase 5 — rejected: leaves the core promise unverified through most of the build"]
+
+    - id: dec-5
+      decision: "Seed content is out of scope for this task list"
+      reason: "Phase 5's checkpoint requires real tools to exercise the pipeline, and the operator supplies them. It is a content workstream on the critical path, tracked in spec/design-inventory.md section 6.5, not an engineering task."
+      alternatives: ["Model it as a task — rejected: no code artifact, and it is not the implementing agent's work"]
+
+  coverage_deferrals: []
+
+  phases:
+    - id: phase-0
+      name: "Tracer — one tool, the whole path, every boundary faked"
+      description: "Make the entire journey visible in a browser before any of it is real. One seeded tool is browsed, run, downloaded, replaced by a dropped file, submitted, approved and republished — with storage, identity, scanning and notification behind fakes, and no AWS anywhere. Claims no acceptance criterion. Its output is a running skeleton and four seams that later phases fill in."
+      covers: []
+      entry_criteria: "Nothing. This is the first phase and it depends on no infrastructure."
+      tasks:
+        - id: task-0.1
+          name: "Define the four ports and their fakes"
+          description: "Storage, Identity, Scanner and Notifier as TypeScript interfaces, each with an in-memory or local-directory fake. Shapes are discovered from how task-0.2's journey uses them, not designed up front. Each port ships a contract test suite that its fake passes and that every later real adapter must also pass unchanged — that suite is what makes swapping a fake for AWS safe."
+          artifact: "src/ports/*.ts, src/adapters/fake/*.ts, tests/specs/ports/*.contract.spec.ts"
+          covers:
+            acs: []
+            rules: [RULE-33]
+            tests: [TC-T04]
+          depends_on: []
+          complexity: "M"
+          validation: "Every fake passes its port's contract suite. No fake imports from another port. Nothing under src/ imports from tests/."
+
+        - id: task-0.2
+          name: "Write the tracer journey test, and watch it fail"
+          description: "TC-T01 drives the whole path end to end through the UI: browse, run, download, drop, submit, approve, republish, download again. Written first and left red. It is the only test in the suite that spans every stage, and no later phase may rewrite it — phases replace what sits beneath it, never the test itself."
+          artifact: "tests/specs/tracer/journey.spec.ts"
+          covers:
+            acs: []
+            rules: [RULE-33]
+            tests: [TC-T01]
+          depends_on: [task-0.1]
+          complexity: "S"
+          validation: "TC-T01 fails for the right reason — a missing page or control, never a syntax or import error. Its failure output names the first missing step."
+
+        - id: task-0.3
+          name: "Static catalogue page with one hardcoded tool"
+          description: "A single page listing one seeded tool from a hardcoded JSON array, served by tests/scripts/serve.mjs. No search, no index, no CDN. Every control reachable by accessible role and name — the testability contract holds from the first line of markup."
+          artifact: "site/index.html, site/tools.json"
+          covers:
+            acs: []
+            rules: [RULE-33]
+            tests: [TC-T01]
+          depends_on: [task-0.2]
+          complexity: "S"
+          validation: "The seeded tool's card is reachable by role and name with no data-testid present anywhere in the built output."
+
+        - id: task-0.4
+          name: "Sandboxed runner and download"
+          description: "Try opens the tool in the sandboxed iframe; Download hands over the file. Both against the one seeded tool. This is the first place the sandbox boundary exists, so it is also the first place tests are forbidden from reaching inside it."
+          artifact: "site/ — runner and download controls"
+          covers:
+            acs: []
+            rules: [RULE-33]
+            tests: [TC-T01, TC-T03]
+          depends_on: [task-0.3]
+          complexity: "M"
+          validation: "The tool runs in the frame and downloads. The downloaded file opens from file:// and TC-T03 confirms the policy is enforced there. No test locates anything inside the frame."
+
+        - id: task-0.5
+          name: "Drop zone that runs a local file"
+          description: "Drag a file in and it executes locally, immediately, with nothing transmitted. No size check, no type check, no scan — those are phase 3. The point is that the no-upload promise is observable from the first day rather than asserted at the end."
+          artifact: "site/ — drop zone"
+          covers:
+            acs: []
+            rules: [RULE-33]
+            tests: [TC-T01, TC-T02]
+          depends_on: [task-0.4]
+          complexity: "M"
+          validation: "TC-T02 records zero responses between drop and run. The `reached` oracle is empty, and page.on('request') is not used as evidence."
+
+        - id: task-0.6
+          name: "Submit to a local queue, approve from the CLI"
+          description: "Submit writes through the Storage port to a local directory, attributed to the Identity fake's stub user; the Scanner fake passes everything; a CLI command performs the approve transition and the Notifier fake logs the decision. No Google, no Lambda, no DynamoDB, no semgrep, no SES, no admin UI."
+          artifact: "src/submit.ts, src/review-cli.ts"
+          covers:
+            acs: []
+            rules: [RULE-33]
+            tests: [TC-T01]
+          depends_on: [task-0.5]
+          complexity: "M"
+          validation: "A submission reaches the queue directory and the CLI moves it to approved. Every write goes through a port; no code path touches the filesystem directly."
+
+        - id: task-0.7
+          name: "Publish through a naive injector, and rebuild"
+          description: "Approval injects the CSP and the rebuild puts the tool in the catalogue. The injector here is a deliberate placeholder — string replacement, not a parser — and it ships with TC-CSP10, TC-CSP11 and TC-CSP12 marked fixme against it. Those three are the definition of done for task-1.5, which replaces this with the parse5 injector and deletes nothing else."
+          artifact: "src/publish/inject-csp.ts (placeholder)"
+          covers:
+            acs: []
+            rules: [RULE-33, RULE-45]
+            tests: [TC-T01, TC-T03]
+          depends_on: [task-0.6]
+          complexity: "M"
+          validation: "TC-T01 goes green. The approved tool appears in the catalogue, downloads, and TC-CSP01..09 pass against it on all three engines. TC-CSP10..12 are fixme and annotated with task-1.5."
+
+      checkpoint:
+        id: cp-0
+        description: "Watch the whole thing happen in a browser. This is the review that decides whether the shape is right, while changing it is still cheap."
+        criteria:
+          - "A person can browse, run and download a tool, then drop their own, submit it, approve it from the CLI, and see it published — in one sitting, on one machine, with no AWS account involved."
+          - "TC-T01 is green and spans every stage."
+          - "All four ports have a contract suite their fake passes; each names the AWS service that will replace it."
+          - "No product code touches storage, identity, scanning or notification except through a port."
+          - "TC-CSP01..09 pass on chromium, firefox and webkit against a file published by the skeleton."
+          - "Every case ID in this phase's covers.tests reads `done` in docs/test-plan.md and passes; `cd tests && npm test` is green."
+
+    - id: phase-1
+      name: "Foundations and the safety mechanism"
+      description: "Create the repository, the toolchain and the EU-region AWS skeleton, then build and verify the CSP injector that carries the product's central promise."
+      covers: [AC-38, AC-54, AC-55]
+      entry_criteria: "AWS account available; EU region chosen; domain registered."
+      tasks:
+        - id: task-1.1
+          name: "Initialise repository and public GitHub remote"
+          description: "git init, .gitignore, LICENSE, README, and a public GitHub remote. The publish pipeline and the free unlimited Actions allowance both require the repository to be public."
+          artifact: "Repository with public origin remote"
+          covers:
+            acs: []
+            rules: [RULE-1]
+          depends_on: []
+          complexity: "S"
+          validation: "git remote -v resolves to a public GitHub repository; Actions tab is available."
+
+        - id: task-1.2
+          name: "Scaffold the TypeScript and Python toolchains"
+          description: "TypeScript side: package.json, tsconfig, Astro project, Vitest config, Playwright config with chromium, firefox and webkit projects. Python side, scoped to scan/ only: pyproject.toml pinning semgrep and html5lib, plus pytest. No application code yet."
+          artifact: "package.json, tsconfig.json, astro.config.mjs, vitest.config.ts, playwright.config.ts, scan/pyproject.toml"
+          covers:
+            acs: []
+            rules: [RULE-32, RULE-44]
+          depends_on: [task-1.1]
+          complexity: "M"
+          validation: "npm test, npx playwright test and pytest all run and report zero tests without error. The Python toolchain exists only under scan/."
+
+        - id: task-1.3
+          name: "Provision AWS skeleton in an EU region"
+          description: "S3 buckets for pending, published and site assets; CloudFront distribution over the site and published buckets with the buckets private; DynamoDB tables for accounts, submissions, reports and bans; SES identity. All in one EU region."
+          artifact: "Infrastructure definitions plus a deployed empty environment"
+          covers:
+            acs: []
+            rules: [RULE-2, RULE-4, RULE-37]
+          depends_on: [task-1.1]
+          complexity: "L"
+          validation: "Every resource reports an EU region; the S3 buckets refuse direct public reads; a test object is retrievable only through CloudFront."
+
+        - id: task-1.4
+          name: "Configure billing alarm"
+          description: "AWS budget with an alarm on the account, set below the point where CloudFront egress overage would matter. Must exist before any public traffic."
+          artifact: "Budget and alarm configuration"
+          covers:
+            acs: []
+            rules: [RULE-3]
+          depends_on: [task-1.3]
+          complexity: "S"
+          validation: "Alarm exists and delivers to a monitored address; a forced test notification arrives."
+
+        - id: task-1.5
+          name: "Build the CSP injector"
+          description: "TypeScript, using parse5. Given an HTML file, insert the verified policy as the first child of head. Do not add unsafe-eval. Reject files whose head cannot be located. Stays in TypeScript so the injector and its file:// regression test cannot diverge."
+          artifact: "src/pipeline/inject-csp.ts plus unit tests"
+          covers:
+            acs: [AC-38]
+            tests: [TC-CSP10, TC-CSP11, TC-CSP12]
+            rules: [RULE-20, RULE-21, RULE-22, RULE-45]
+          depends_on: [task-1.2]
+          complexity: "M"
+          validation: "Unit tests assert the meta element is first in head, the directive string matches exactly, and a malformed file is rejected rather than silently passed through."
+
+        - id: task-1.6
+          name: "Port the ED-1 probe into an automated regression test"
+          description: "Convert spikes/ed-1-csp/probe.html into a Playwright test that loads an injected file over file:// and asserts outbound requests are denied while a generated blob download succeeds. Run across chromium, firefox and webkit."
+          artifact: "tests/csp-file-protocol.spec.ts"
+          covers:
+            acs: [AC-54, AC-55]
+            tests: [TC-CSP01, TC-CSP02, TC-CSP03, TC-CSP04, TC-CSP05, TC-CSP06, TC-CSP07, TC-CSP08]
+            rules: [RULE-31]
+          depends_on: [task-1.5]
+          complexity: "M"
+          validation: "Test passes on chromium and firefox."
+          risk: "Safari/WebKit is unverified — Chrome and Firefox were confirmed empirically but WebKit has diverged historically on both CSP and file://. If the webkit project fails, stop and reassess: the promise then holds for most users but cannot be stated unconditionally."
+      checkpoint:
+        id: cp-1
+        description: "Review the foundation before any product code is written."
+        criteria:
+          - "Repository is public and Actions runs."
+          - "All AWS resources are in an EU region and no bucket is publicly readable."
+          - "Billing alarm has delivered a test notification."
+          - "CSP regression test passes on chromium, firefox and webkit — already true: TC-CSP01..09 are green on all three, and spikes/ed-1-csp/FINDINGS.md records the WebKit closure."
+          - "TC-CSP10, TC-CSP11 and TC-CSP12 pass against the real injector, and support/publish.ts delegates to it rather than building its own markup (RULE-45)."
+          - "Every case ID in this phase's covers.tests reads `done` in docs/test-plan.md and passes; `cd tests && npm test` is green."
+
+    - id: phase-2
+      name: "Catalogue — the read path"
+      description: "The public half of the product: browse, search, try a tool in isolation, download it. Buildable against fixture tools before any upload path exists."
+      covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-56, AC-57, AC-58, AC-59, AC-60]
+      entry_criteria: "cp-1 passed. A handful of fixture tools exist for local development."
+      tasks:
+        - id: task-2.1
+          name: "Static catalogue pages"
+          description: "Astro pages listing approved tools and a detail page per tool, generated from metadata. Unapproved tools must not appear or be reachable."
+          artifact: "src/pages/index.astro, src/pages/tools/[slug].astro"
+          covers:
+            acs: [AC-1, AC-2]
+            tests: [TC-C01, TC-C02]
+            rules: [RULE-2, RULE-26, RULE-34]
+          depends_on: [task-1.3]
+          complexity: "M"
+          validation: "Catalogue renders without a session; a fixture in pending state appears nowhere in the built output and returns 404 through CloudFront."
+
+        - id: task-2.2
+          name: "Client-side search over a prebuilt index"
+          description: "Generate a static JSON index of title, description and tags at build time; search it in the browser. No server involvement."
+          artifact: "src/lib/search.ts plus generated index"
+          covers:
+            acs: [AC-3, AC-4, AC-59]
+            tests: [TC-C03, TC-C04, TC-A05]
+            rules: []
+          depends_on: [task-2.1]
+          complexity: "M"
+          validation: "Matching query returns matching tools only; non-matching query returns empty rather than everything; p95 under 200ms measured locally."
+
+        - id: task-2.3
+          name: "Sandboxed in-page runner"
+          description: "Serve tools from a distinct origin and execute them in an iframe with sandbox allow-scripts and without allow-same-origin. Send the content policy as an HTTP header in addition to the injected meta tag."
+          artifact: "src/components/Runner.astro, runner origin configuration"
+          covers:
+            acs: [AC-5, AC-6, AC-60]
+            tests: [TC-S01, TC-S02, TC-S03]
+            rules: [RULE-23, RULE-24]
+          depends_on: [task-2.1]
+          complexity: "L"
+          validation: "A deliberately hostile fixture cannot read or modify the host document, and its outbound requests are denied. Assert the sandbox attribute never contains allow-same-origin alongside allow-scripts."
+          risk: "Sandbox isolation is one attribute away from total silent failure. The test asserting a hostile fixture cannot reach the host page is the control, not code review."
+
+        - id: task-2.4
+          name: "Download path"
+          description: "Serve the published file byte-exact through CloudFront from a content-addressed key."
+          artifact: "Download route and CloudFront behaviour"
+          covers:
+            acs: [AC-7]
+            tests: [TC-C07]
+            rules: [RULE-2, RULE-12]
+          depends_on: [task-2.1]
+          complexity: "S"
+          validation: "Downloaded bytes hash-match the published object; the file opens and works from file:// after download."
+
+        - id: task-2.5
+          name: "Screenshots on cards, with graceful absence"
+          description: "Display a tool's screenshot where one exists; render the card without an image otherwise, never suppressing the tool."
+          artifact: "Card component and image handling"
+          covers:
+            acs: [AC-8, AC-9]
+            tests: [TC-C05, TC-C06]
+            rules: []
+          depends_on: [task-2.1]
+          complexity: "S"
+          validation: "A fixture with no screenshot still appears in the catalogue and is downloadable."
+
+        - id: task-2.6
+          name: "Accessibility, keyboard operation and no-JavaScript browsing"
+          description: "Ensure browsing, searching, trying and downloading are keyboard operable, text meets 4.5:1 contrast, and browsing and downloading work with JavaScript disabled."
+          artifact: "Accessibility fixes plus automated axe checks"
+          covers:
+            acs: [AC-56, AC-57, AC-58]
+            tests: [TC-A01, TC-A03, TC-A02, TC-A04]
+            rules: [RULE-33]
+          depends_on: [task-2.2, task-2.4]
+          complexity: "M"
+          validation: "Axe reports no violations; keyboard-only walkthrough completes every action; catalogue and download work with JavaScript off; first contentful paint under 1.5s p95 on throttled 4G."
+
+        - id: task-2.7
+          name: "CDN invalidation on rebuild"
+          description: "Invalidate catalogue pages whenever the site is regenerated. Tool files are content-addressed and self-invalidating; pages are not."
+          artifact: "Invalidation step in the deploy path"
+          covers:
+            acs: []
+            rules: [RULE-43]
+          depends_on: [task-2.1]
+          complexity: "S"
+          validation: "Changing a tool's title and rebuilding shows the new title through CloudFront without waiting for cache expiry."
+      checkpoint:
+        id: cp-2
+        description: "Review the public product end to end against fixtures."
+        criteria:
+          - "A visitor with no account can browse, search, run and download a tool."
+          - "The hostile fixture cannot escape the sandbox or reach the network."
+          - "Accessibility checks pass and the catalogue works with JavaScript disabled."
+          - "A rebuild propagates through the CDN immediately."
+          - "Every case ID in this phase's covers.tests reads `done` in docs/test-plan.md and passes; `cd tests && npm test` is green."
+
+    - id: phase-3
+      name: "Sharing — the write path"
+      description: "Drag and drop through to a queued submission: local execution, advisory pre-check, authentication, and the upload itself."
+      covers: [AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-16, AC-17, AC-18, AC-19, AC-20, AC-21, AC-22, AC-23, AC-24, AC-25, AC-26, AC-27, AC-28, AC-29]
+      entry_criteria: "cp-2 passed. Google OAuth client credentials issued."
+      tasks:
+        - id: task-3.1
+          name: "Drop zone with local execution"
+          description: "Accept a dropped file and run it immediately in the sandboxed runner without transmitting it anywhere. This is the moment of payoff and must precede any upload."
+          artifact: "src/pages/share.astro, drop zone component"
+          covers:
+            acs: [AC-10]
+            tests: [TC-S04]
+            rules: [RULE-23]
+          depends_on: [task-2.3]
+          complexity: "M"
+          validation: "Network panel shows zero requests carrying file content between drop and submit."
+
+        - id: task-3.2
+          name: "Client-side pre-check and input rejection"
+          description: "Advisory structural check at drop time, reporting failures before transmission. Reject non-HTML input and anything over 26,214,400 bytes."
+          artifact: "src/lib/precheck.ts plus unit tests"
+          covers:
+            acs: [AC-11, AC-12, AC-13, AC-14, AC-15]
+            tests: [TC-W01, TC-W02, TC-W03, TC-W04, TC-W05]
+            rules: [RULE-19, RULE-35]
+          depends_on: [task-3.1]
+          complexity: "M"
+          validation: "Boundary tested at 26,214,399, exactly 26,214,400 and 26,214,401 bytes. Non-HTML rejected. No transmission occurs on any rejection path."
+
+        - id: task-3.3
+          name: "AI-drafted description with manual fallback"
+          description: "Draft a description from the file's source for the maker to edit; allow manual entry and never block submission when drafting fails."
+          artifact: "Draft Lambda and form integration"
+          covers:
+            acs: [AC-16, AC-17]
+            tests: [TC-W06, TC-W07]
+            rules: []
+          depends_on: [task-3.2]
+          complexity: "M"
+          validation: "Draft appears editable; with the drafting service forced to fail, submission still completes."
+
+        - id: task-3.4
+          name: "Google OAuth and account creation"
+          description: "Auth Lambda performing the OAuth exchange, verifying the id_token against Google's JWKS including aud and exp, issuing a signed HttpOnly Secure SameSite=Lax session cookie. First sign-in creates an account and captures a username once. CloudFront must route /auth/* to this Lambda as an origin so the registered redirect URI stays https://mimawsi.com/auth/google/callback rather than the Lambda Function URL hostname."
+          artifact: "src/lambda/auth.ts"
+          covers:
+            acs: [AC-18, AC-20, AC-21, AC-22]
+            tests: [TC-W08, TC-W10, TC-W11, TC-W12, TC-W13]
+            rules: [RULE-7, RULE-8, RULE-9, RULE-13]
+          depends_on: [task-1.3]
+          complexity: "L"
+          validation: "A forged token is rejected. Second sign-in does not re-prompt for a username. Cookie carries all three attributes."
+
+        - id: task-3.5
+          name: "Upload Lambda with hashing, dedupe and rate limiting"
+          description: "Accept the file only from an authenticated session; hash server-side; store under a content-addressed key in the pending prefix; reject duplicates against published tools; enforce five accepted submissions per rolling 24 hours via a single conditional write; create the submission row in pending state."
+          artifact: "src/lambda/upload.ts"
+          covers:
+            acs: [AC-19, AC-23, AC-24, AC-25, AC-26, AC-27]
+            tests: [TC-W09, TC-W14, TC-W15, TC-W16, TC-W17, TC-W18]
+            rules: [RULE-10, RULE-11, RULE-12, RULE-13, RULE-34, RULE-35]
+          depends_on: [task-3.4]
+          complexity: "L"
+          validation: "Unauthenticated submit stores nothing and creates no row. Duplicate is rejected and links the existing tool. Rate limit tested at the 4th, 5th and 6th submission, and under concurrent requests to prove the conditional write holds."
+
+        - id: task-3.6
+          name: "Submission status view with ownership checks"
+          description: "Let a maker see the state of their own submissions and nobody else's. Status is honest and carries no time estimate."
+          artifact: "src/pages/mine.astro, src/lambda/submissions.ts"
+          covers:
+            acs: [AC-28, AC-29]
+            tests: [TC-W19, TC-W20]
+            rules: [RULE-9, RULE-25, RULE-34]
+          depends_on: [task-3.5]
+          complexity: "M"
+          validation: "Requesting another maker's submission is denied and leaks no state, metadata or file content."
+      checkpoint:
+        id: cp-3
+        description: "Review the sharing path before connecting the automated pipeline."
+        criteria:
+          - "Nothing reaches storage before authentication."
+          - "A dropped file runs locally with zero network activity."
+          - "Rate limit holds under concurrent submissions."
+          - "No maker can observe another's submissions."
+          - "Every case ID in this phase's covers.tests reads `done` in docs/test-plan.md and passes; `cd tests && npm test` is green."
+
+    - id: phase-4
+      name: "Scanning pipeline"
+      description: "The automated half of review: extract executable content, scan it, screenshot the tool, observe what it attempts at runtime, and record findings without giving the pipeline any credentials."
+      covers: [AC-30, AC-31, AC-31a, AC-31b, AC-31c, AC-32, AC-33, AC-34]
+      entry_criteria: "cp-3 passed. Submissions land in the pending prefix with rows in pending state."
+      tasks:
+        - id: task-4.1
+          name: "Executable-content extractor"
+          description: "Python, using html5lib for spec-compliant HTML5 parsing. Extract JavaScript from script elements, event-handler attributes, javascript: URLs, iframe srcdoc content and SVG-nested script, writing each to a .js file for scanning. Reject unparseable HTML. An extraction yielding no script must never count as a clean scan."
+          artifact: "scan/extract.py plus adversarial fixtures and pytest tests"
+          covers:
+            acs: []
+            rules: [RULE-15, RULE-15a, RULE-15b, RULE-15c, RULE-16, RULE-44]
+          depends_on: [task-1.2]
+          complexity: "L"
+          validation: "Each enumerated route is proven extracted by a dedicated adversarial fixture. Unparseable input fails closed. Empty extraction is distinguishable from a clean scan. A malformed-markup fixture is asserted to parse identically to a real browser's interpretation."
+          risk: "Two ways this fails silently. First, enumerating execution routes is structurally the same losing game as enumerating malicious patterns — a route nobody listed is a route nobody scans. Second, a parser that disagrees with browsers about malformed markup leaves executable code the scanner reads as inert text; html5lib is mandated for this reason and the property must be demonstrated, not assumed. CSP and human review are the backstops; this is not a sole control."
+
+        - id: task-4.2
+          name: "Semgrep ruleset for network capability"
+          description: "Rules matching network primitives and external subresource references only. Must not match on code quality, structure, or localStorage and IndexedDB use."
+          artifact: "scan/rules/network-capability.yml plus fixture corpus"
+          covers:
+            acs: [AC-31, AC-31b, AC-31c]
+            tests: [TC-R02, TC-CSP09, TC-R04]
+            rules: [RULE-15, RULE-17, RULE-44]
+          depends_on: [task-4.1]
+          complexity: "M"
+          validation: "Fixtures using fetch, XHR, sendBeacon and external src all match. A messy but network-free tool does not match. A tool using localStorage does not match and is not flagged."
+
+        - id: task-4.3
+          name: "Flagging for dynamic evaluation and out-of-scope capabilities"
+          description: "Record a reviewer flag, without rejecting, for eval, Function(), Workers, WASM, camera and microphone."
+          artifact: "scan/rules/flags.yml plus flag handling"
+          covers:
+            acs: [AC-31a]
+            tests: [TC-CSP05, TC-R03]
+            rules: [RULE-17, RULE-18]
+          depends_on: [task-4.2]
+          complexity: "S"
+          validation: "A fixture using eval is flagged and remains in pending state rather than transitioning to rejected."
+
+        - id: task-4.4
+          name: "Screenshot capture with failure tolerance"
+          description: "Headless Chromium screenshot of the tool during the approval pipeline. A capture failure publishes without an image rather than returning the submission to the queue."
+          artifact: "src/pipeline/screenshot.ts"
+          covers:
+            acs: [AC-33, AC-34]
+            tests: [TC-R06, TC-R08, TC-R07]
+            rules: []
+          depends_on: [task-1.2]
+          complexity: "M"
+          validation: "Screenshot produced for a normal tool. With capture forced to fail, the submission still proceeds."
+
+        - id: task-4.5
+          name: "Runtime request observation"
+          description: "During the screenshot run, record every request attempted and every securitypolicyviolation event, attaching them as reviewer flags. Never infer the outcome from an API return value."
+          artifact: "Request observation within src/pipeline/screenshot.ts"
+          covers:
+            acs: []
+            rules: [RULE-18]
+          depends_on: [task-4.4]
+          complexity: "M"
+          validation: "A fixture calling sendBeacon is flagged despite Chrome's sendBeacon returning true for a blocked request — assert the flag comes from the observed request, not the return value."
+
+        - id: task-4.6
+          name: "Results Lambda"
+          description: "The pipeline's only write path. Accepts scan findings, flags and screenshot references, authenticates the caller, and records them against a submission."
+          artifact: "src/lambda/results.ts"
+          covers:
+            acs: [AC-32]
+            tests: [TC-R05]
+            rules: [RULE-4, RULE-17a]
+          depends_on: [task-3.5]
+          complexity: "M"
+          validation: "Findings are readable by a reviewer. GitHub Actions holds no DynamoDB or S3 credentials anywhere in the workflow definition."
+
+        - id: task-4.7
+          name: "Scan workflow with a read-only token"
+          description: "GitHub Actions workflow running the Python scan job (extraction plus semgrep) and the Playwright screenshot on every pending submission, with every action pinned to a commit SHA and a read-only token. Pin Python dependencies by hash."
+          artifact: ".github/workflows/scan.yml"
+          covers:
+            acs: [AC-30]
+            tests: [TC-R01]
+            rules: [RULE-14, RULE-29, RULE-44]
+          depends_on: [task-4.6]
+          complexity: "M"
+          validation: "Every action is SHA-pinned. The workflow cannot write to the repository or to AWS. Every pending submission is scanned."
+      checkpoint:
+        id: cp-4
+        description: "Review the automated pipeline, with attention to what it cannot catch."
+        criteria:
+          - "Every extraction route has a passing adversarial fixture."
+          - "Unparseable input fails closed rather than passing silently."
+          - "The scan workflow holds no write credentials of any kind."
+          - "A network-free but badly written tool is neither rejected nor flagged."
+          - "Every case ID in this phase's covers.tests reads `done` in docs/test-plan.md and passes; `cd tests && npm test` is green."
+
+    - id: phase-5
+      name: "Human review and publication"
+      description: "The decision half: a reviewer sees the tool running beside its findings, approves or rejects, and approval publishes with CSP injected and the maker notified."
+      covers: [AC-35, AC-36, AC-37, AC-39, AC-40, AC-41, AC-42, AC-43]
+      entry_criteria: "cp-4 passed. Findings and screenshots are recorded against pending submissions."
+      tasks:
+        - id: task-5.1
+          name: "Admin review surface"
+          description: "Authorisation-gated page showing the queue, and per submission the tool executing in the sandboxed runner beside its scan findings and flags."
+          artifact: "src/pages/admin/review.astro, src/lambda/admin.ts"
+          covers:
+            acs: [AC-35, AC-36]
+            tests: [TC-R09, TC-R10]
+            rules: [RULE-25, RULE-26, RULE-34]
+          depends_on: [task-4.6, task-2.3]
+          complexity: "L"
+          validation: "An unauthorised requester is denied and receives no file content, metadata or findings. Route obscurity is never the control."
+
+        - id: task-5.2
+          name: "Approve transition and publish workflow"
+          description: "Approval transitions the submission to published. A separate workflow with write scope, running only after approval and never touching unreviewed files, injects CSP, copies to the published prefix, writes metadata and rebuilds."
+          artifact: ".github/workflows/publish.yml, approve handler"
+          covers:
+            acs: [AC-37]
+            tests: [TC-R11]
+            rules: [RULE-29, RULE-36, RULE-43]
+          depends_on: [task-5.1, task-1.5]
+          complexity: "L"
+          validation: "Approval publishes and the catalogue rebuilds. Assert both the resulting state and the publication effect. The publish workflow cannot be triggered for an unapproved submission."
+
+        - id: task-5.3
+          name: "Verify CSP on every published file"
+          description: "Assert as a pipeline step that the published artifact carries the policy as the first element in head, so a publish path regression cannot silently ship an unprotected tool."
+          artifact: "Verification step in publish workflow"
+          covers:
+            acs: [AC-38]
+            tests: [TC-CSP10, TC-CSP11, TC-CSP12]
+            rules: [RULE-20, RULE-21, RULE-31]
+          depends_on: [task-5.2]
+          complexity: "S"
+          validation: "Publishing a file whose injection was skipped fails the workflow."
+
+        - id: task-5.4
+          name: "Decision notifications through SES"
+          description: "Email the maker on approval, including the share link, and on rejection."
+          artifact: "src/lambda/notify.ts"
+          covers:
+            acs: [AC-39, AC-40]
+            tests: [TC-R12]
+            rules: [RULE-28, RULE-30, RULE-37]
+          depends_on: [task-5.2]
+          complexity: "M"
+          validation: "Both emails send and arrive. No email address or file content appears in any log."
+
+        - id: task-5.5
+          name: "Rejection reasons and remediation content"
+          description: "Wire the nine rejection reasons to their remedy text, each including a paste-able prompt where an automated fix is plausible. Content comes from spec/design-inventory.md section 6.2."
+          artifact: "src/content/rejections.ts"
+          covers:
+            acs: [AC-41, AC-42]
+            tests: [TC-R13]
+            rules: [RULE-28]
+          depends_on: [task-5.4]
+          complexity: "M"
+          validation: "Every rejection carries both the failing check and its remedy. No reason resolves to generic text."
+
+        - id: task-5.6
+          name: "Edit and resubmit a rejected submission"
+          description: "Allow a rejected submission to be revised and returned to pending against the same record."
+          artifact: "Resubmit handler and UI"
+          covers:
+            acs: [AC-43]
+            tests: [TC-R14]
+            rules: [RULE-36]
+          depends_on: [task-5.5, task-3.6]
+          complexity: "M"
+          validation: "Resubmission reuses the record rather than creating a second one, and asserts both the state change and re-entry into the scan queue."
+      checkpoint:
+        id: cp-5
+        description: "First genuinely shippable state — review with real seed tools, not fixtures."
+        criteria:
+          - "A real tool completes drop, submit, scan, review, approve, publish and download."
+          - "Every published file carries the policy and is verified as doing so."
+          - "A rejection tells the maker what failed and how to fix it."
+          - "Unauthorised access to the review surface leaks nothing."
+          - "Seed tools exist — the catalogue is not empty."
+          - "Every case ID in this phase's covers.tests reads `done` in docs/test-plan.md and passes; `cd tests && npm test` is green."
+
+    - id: phase-6
+      name: "Lifecycle, moderation and compliance"
+      description: "Everything after publication: edits, unpublication, reports, delisting, bounded retention and erasure. Legally required before any public launch."
+      covers: [AC-44, AC-45, AC-46, AC-47, AC-48, AC-49, AC-50, AC-51, AC-52, AC-53, AC-61, AC-62, AC-63, AC-64, AC-65, AC-66, AC-66a, AC-67, AC-68, AC-69, AC-70]
+      entry_criteria: "cp-5 passed. Tools are publishing successfully."
+      tasks:
+        - id: task-6.1
+          name: "Edit a published tool through review"
+          description: "A changed file or changed metadata re-enters the queue while the live version keeps serving, and the approved result lands at the same address."
+          artifact: "Edit handler and UI"
+          covers:
+            acs: [AC-44, AC-45, AC-46]
+            tests: [TC-L01, TC-L04, TC-L02, TC-L03]
+            rules: [RULE-12, RULE-36, RULE-43]
+          depends_on: [task-5.6]
+          complexity: "L"
+          validation: "The live version serves throughout review. The address does not change across edits. Metadata edits cannot bypass review."
+
+        - id: task-6.2
+          name: "Unpublish, with ownership checks"
+          description: "A maker unpublishes their own tool immediately without review; the object is retained for its window. Unpublishing another maker's tool is denied."
+          artifact: "Unpublish handler"
+          covers:
+            acs: [AC-47, AC-48]
+            tests: [TC-L05, TC-L06]
+            rules: [RULE-27, RULE-34, RULE-36, RULE-43]
+          depends_on: [task-6.1]
+          complexity: "M"
+          validation: "Removal is immediate through the CDN. A cross-owner request alters no state. The warning that existing downloads keep working is shown before confirming."
+
+        - id: task-6.3
+          name: "Anonymous reporting"
+          description: "Accept a report from a visitor with no account, queue it for reviewer attention, and keep the reported tool live."
+          artifact: "src/lambda/report.ts, report form"
+          covers:
+            acs: [AC-49, AC-50, AC-51]
+            tests: [TC-L07, TC-L08, TC-L09]
+            rules: [RULE-4]
+          depends_on: [task-5.1]
+          complexity: "M"
+          validation: "Reporting works signed out. The reported tool remains served. The report appears in the admin queue."
+
+        - id: task-6.4
+          name: "Reviewer delisting"
+          description: "An authorised reviewer removes a tool from the catalogue immediately without further approval. Unauthorised delisting is denied and changes nothing."
+          artifact: "Delist handler and admin control"
+          covers:
+            acs: [AC-52, AC-53]
+            tests: [TC-L10, TC-L11]
+            rules: [RULE-25, RULE-27, RULE-34, RULE-36, RULE-43]
+          depends_on: [task-6.3]
+          complexity: "M"
+          validation: "Delisting takes effect through the CDN at once. An unauthorised attempt leaves state untouched."
+
+        - id: task-6.5
+          name: "Bounded retention expiry"
+          description: "Declarative expiry via S3 lifecycle rules and DynamoDB TTL for rejected submissions and unpublished or delisted objects. No operator action may be required."
+          artifact: "Lifecycle and TTL configuration"
+          covers:
+            acs: [AC-64, AC-65, AC-66, AC-67]
+            tests: [TC-L15, TC-L16, TC-L18]
+            rules: [RULE-27, RULE-35, RULE-38]
+          depends_on: [task-6.4]
+          complexity: "M"
+          validation: "Boundary tested within the window, at 90 days and beyond 92 days, using injected timestamps. Expiry requires no manual step."
+
+        - id: task-6.6
+          name: "Account deletion and erasure"
+          description: "Delete the account record, email and submission history; delete rejected submissions and unpublished objects immediately rather than rescheduling their retention; keep published tools in the catalogue and stop displaying the username; rebuild and invalidate."
+          artifact: "src/lambda/delete-account.ts"
+          covers:
+            acs: [AC-61, AC-62, AC-63, AC-66a]
+            tests: [TC-L12, TC-L13, TC-L14, TC-L17]
+            rules: [RULE-40, RULE-41, RULE-42, RULE-43]
+          depends_on: [task-6.5]
+          complexity: "L"
+          validation: "One test asserts all four effects together: database cleared, objects deleted, catalogue rebuilt without the username, CDN invalidated. Published tools survive. Erasure is idempotent and re-runnable."
+          risk: "Erasure spans four systems — DynamoDB, S3, the catalogue rebuild and CDN invalidation. Any one step failing leaves personal data visible while the operation reports success. Assert all four in a single test rather than asserting the database write alone."
+
+        - id: task-6.7
+          name: "Ban records and registration refusal"
+          description: "On ban, retain a salted one-way hash of the email with reason and date, and nothing else. Refuse account creation when an applicant's address matches a retained hash."
+          artifact: "Ban handler, registration check in src/lambda/auth.ts"
+          covers:
+            acs: [AC-68, AC-69, AC-70]
+            tests: [TC-L19, TC-L20]
+            rules: [RULE-34, RULE-37, RULE-39]
+          depends_on: [task-6.6, task-3.4]
+          complexity: "M"
+          validation: "A banned-then-deleted account leaves no address, username or submission history, and no value from which the address can be recovered. The hash is salted. A matching applicant is refused and no account row is created."
+          risk: "Ban evasion is trivial — a fresh Google account defeats this in a minute. It is a speed bump and must not be described as more. File-hash dedupe and human review remain the real controls; do not build further identity checks expecting them to hold."
+      checkpoint:
+        id: cp-6
+        description: "Launch readiness review. Everything here is legally required before the site is public."
+        criteria:
+          - "Erasure clears all four systems and is provably idempotent."
+          - "Retention expiry runs without any manual step."
+          - "Reports reach the queue from a signed-out visitor."
+          - "Terms and privacy policy have had legal review and correctly describe the implemented behaviour, including that published tools remain after account deletion."
+          - "The public promise is worded to match the measured result: meta CSP is enforced from file:// on chromium, firefox and webkit alike (spikes/ed-1-csp/FINDINGS.md)."
+          - "Every case ID in this phase's covers.tests reads `done` in docs/test-plan.md and passes; `cd tests && npm test` is green."
