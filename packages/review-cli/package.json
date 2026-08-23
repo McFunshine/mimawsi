@@ -10,6 +10,7 @@
     "@mimawsi/adapters-fake": "*",
     "@mimawsi/domain": "*",
     "@mimawsi/ports": "*",
-    "@mimawsi/injector": "*"
+    "@mimawsi/injector": "*",
+    "@mimawsi/adapters-aws": "*"
   }
 }

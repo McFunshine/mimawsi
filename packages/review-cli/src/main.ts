@@ -8,6 +8,7 @@
 import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { S3Storage } from '@mimawsi/adapters-aws';
 import { fakePorts } from '@mimawsi/adapters-fake';
 import { injectCsp } from '@mimawsi/injector';
 import { NoSuchSubmission, selectTarget } from './select-target.ts';
@@ -16,7 +17,22 @@ import type { Tool } from '@mimawsi/domain';
 const STORE =
   process.env.MIMAWSI_STORE ?? fileURLToPath(new URL('../../../.mimawsi-local/', import.meta.url));
 
-const ports = fakePorts(STORE);
+/**
+ * Which store to review.
+ *
+ * With MIMAWSI_BUCKET set this reviews what the upload Lambda actually received;
+ * without it, the local directory, which is what the journey test drives. The
+ * default is deliberately the local one — a review command that reached for
+ * production because a variable was absent would be the wrong way round.
+ *
+ * Only storage is swapped. The scanner and notifier are still fakes here, and
+ * saying so in one line is better than a second factory that hides which parts
+ * are real: approving still sends nobody an email.
+ */
+const BUCKET = process.env.MIMAWSI_BUCKET;
+const ports = BUCKET
+  ? { ...fakePorts(STORE), storage: new S3Storage(BUCKET) }
+  : fakePorts(STORE);
 const [command, ...rest] = process.argv.slice(2);
 
 const SITE = fileURLToPath(new URL('../../site/', import.meta.url));
