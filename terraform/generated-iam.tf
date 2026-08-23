@@ -7,7 +7,7 @@ resource "aws_iam_openid_connect_provider" "github" {
   tags            = {}
   tags_all        = {}
   thumbprint_list = ["ab9d0263244dd0326eb67015705a667e79cfe998"]
-  url = "https://token.actions.githubusercontent.com"
+  url             = "https://token.actions.githubusercontent.com"
 }
 
 # adopted from an existing resource

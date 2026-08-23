@@ -19,7 +19,6 @@ resource "aws_cloudfront_origin_access_control" "site" {
 # adopted from an existing distribution
 resource "aws_cloudfront_response_headers_policy" "runner" {
   comment = "mimawsi runner: tool CSP + frame-ancestors. See infra/cloudfront."
-  etag    = "E23ZP02F085DFQ"
   name    = "mimawsi-runner-headers"
   custom_headers_config {
     items {

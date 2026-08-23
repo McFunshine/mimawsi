@@ -74,10 +74,10 @@ resource "aws_lambda_function_url" "submit" {
   cors {
     # The catalogue only. A Function URL with "*" here would let any page on the
     # internet drive this endpoint with a victim's token.
-    allow_origins  = ["https://www.mimawsi.com", "https://mimawsi.com"]
-    allow_methods  = ["GET", "POST"]
-    allow_headers  = ["content-type", "authorization"]
-    max_age        = 3600
+    allow_origins = ["https://www.mimawsi.com", "https://mimawsi.com"]
+    allow_methods = ["GET", "POST"]
+    allow_headers = ["content-type", "authorization"]
+    max_age       = 3600
   }
 }
 
@@ -85,6 +85,43 @@ resource "aws_lambda_function_url" "submit" {
 # open: the handler refuses every request without the operator token, and refuses
 # before any bytes are hashed or stored (AC-19). IAM auth is not usable here —
 # the browser has no SigV4 credentials to sign with.
+#
+# And NONE alone is not enough to make the URL reachable. Setting it declares that
+# the platform will not authenticate, but the function's own resource policy still
+# has to permit the call, so without this every request is answered 403 by Lambda
+# before the handler runs — including /health, which is what made it obvious the
+# refusal was not the handler's.
+# Declared explicitly rather than relying on the provider adding it: this is the
+# whole reason the URL is reachable, and a policy that exists only as a side
+# effect of another resource is not one anybody can reason about.
+# A public function URL needs BOTH of these, and AWS answers 403 with neither
+# route reaching the handler if either is missing — /health included, which is
+# what showed the refusal was the platform's rather than the code's.
+#
+# The two are not interchangeable and take different arguments: the URL-level
+# grant is conditioned on the auth type, while the invoke-level grant uses
+# lambda:InvokedViaFunctionUrl. Passing the auth type to the second is rejected
+# outright ("FunctionUrlAuthType is only supported for lambda:InvokeFunctionUrl").
+#
+# invoked_via_function_url needs AWS provider v6; v5 has no such argument. That
+# condition is the part worth keeping: it restricts the grant to calls arriving
+# through the URL, so principal "*" cannot be used to invoke the function by any
+# other route.
+resource "aws_lambda_permission" "submit_url" {
+  statement_id           = "AllowInvokeViaFunctionUrl"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.submit.function_name
+  principal              = "*"
+  function_url_auth_type = "NONE"
+}
+
+resource "aws_lambda_permission" "submit_url_invoke" {
+  statement_id             = "AllowInvokeFunctionViaFunctionUrl"
+  action                   = "lambda:InvokeFunction"
+  function_name            = aws_lambda_function.submit.function_name
+  principal                = "*"
+  invoked_via_function_url = true
+}
 
 # Log retention is set explicitly. Lambda creates this group on first invocation
 # with retention "never expire", which quietly accrues cost forever — the one

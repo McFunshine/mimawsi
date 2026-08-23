@@ -14,6 +14,12 @@ because this repository is public.
 
 ## What it can do, and what it deliberately cannot
 
+- **List the bucket.** Not so it can enumerate anything — because without
+  `s3:ListBucket`, S3 answers `403 AccessDenied` for a key that does not exist
+  instead of `404 NoSuchKey`, to avoid revealing whether it is there. The adapter
+  treats 404 as "no index yet" and refuses to swallow a 403, which is correct, so
+  without this the very first upload fails with an opaque 500: the store starts
+  empty, and reading the index that is not there yet looks like a denial.
 - **Read and write** objects in the pending bucket. That is the whole store: the
   submitted bytes, the published bytes, and `index.json`.
 - **Never delete.** An explicit Deny, not merely an omitted Allow, because a Deny

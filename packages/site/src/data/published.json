@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "id": {
+      "value": "aa294dda-569e-4c0a-b1ca-bb23e8c3002e"
+    },
+    "metadata": {
+      "title": "Coin Flip",
+      "description": "Flips a coin. Yes, that is all it does.",
+      "tags": []
+    },
+    "maker": "operator",
+    "sha256": "5475f0d64dd8c525d8a551a1d0c4823e10b8b397bb7379ee41f0c3566ffe2eb3",
+    "sizeBytes": 433
+  }
+]
