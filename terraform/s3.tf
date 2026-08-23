@@ -65,6 +65,24 @@ resource "aws_s3_bucket_lifecycle_configuration" "pending" {
       days_after_initiation = 1
     }
   }
+
+  # The contract suite writes here, one prefix per run, and deliberately does not
+  # tidy up: a failed run should leave its evidence. Scoping the rule above to
+  # pending/ stopped collecting these, so they now have a rule of their own — a
+  # week is long enough to investigate a failure and short enough that a test
+  # fixture never becomes a permanent resident of a production bucket.
+  rule {
+    id     = "expire-contract-test-runs"
+    status = "Enabled"
+
+    filter {
+      prefix = "contract-test/"
+    }
+
+    expiration {
+      days = 7
+    }
+  }
 }
 
 # The site bucket already exists and is adopted in generated.tf. Its public
