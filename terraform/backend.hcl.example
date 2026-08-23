@@ -1,0 +1,2 @@
+# Copy to backend.hcl. Gitignored: the bucket name embeds the account id.
+bucket = "mimawsi-tfstate-000000000000"

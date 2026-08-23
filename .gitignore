@@ -35,3 +35,15 @@ packages/site/public/tools/*.html
 # Working notes, handovers and review responses — useful locally, not product.
 HANDOFF.md
 notes/
+
+# Terraform — state can contain secrets and must never be committed
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# Terraform backend config carries the state bucket name
+backend.hcl
+!backend.hcl.example
