@@ -1,5 +1,4 @@
 {
-  "_comment": "Permissions the LOCAL identity needs to run Terraform for task-1.3 and the phases after it. This is the infrastructure identity, not the CI deploy role: RULE-17a keeps GitHub Actions away from DynamoDB and the published prefix, and nothing here is attached to that role. Scoped by mimawsi-* name prefix so a mistake cannot reach the other projects in this account. IAM is read-only on purpose: Terraform needs to read the OIDC role in order to adopt it, never to create roles. Substitute ACCOUNT_ID.",
   "Version": "2012-10-17",
   "Statement": [
     {
@@ -23,7 +22,9 @@
     {
       "Sid": "ListingTablesCannotBeScopedByName",
       "Effect": "Allow",
-      "Action": ["dynamodb:ListTables"],
+      "Action": [
+        "dynamodb:ListTables"
+      ],
       "Resource": "*"
     },
     {
@@ -53,7 +54,9 @@
     {
       "Sid": "ListingFunctionsCannotBeScopedByName",
       "Effect": "Allow",
-      "Action": ["lambda:ListFunctions"],
+      "Action": [
+        "lambda:ListFunctions"
+      ],
       "Resource": "*"
     },
     {
@@ -92,10 +95,14 @@
     {
       "Sid": "PassRoleToLambdaOnly",
       "Effect": "Allow",
-      "Action": ["iam:PassRole"],
+      "Action": [
+        "iam:PassRole"
+      ],
       "Resource": "arn:aws:iam::ACCOUNT_ID:role/mimawsi-*",
       "Condition": {
-        "StringEquals": { "iam:PassedToService": "lambda.amazonaws.com" }
+        "StringEquals": {
+          "iam:PassedToService": "lambda.amazonaws.com"
+        }
       }
     }
   ]
