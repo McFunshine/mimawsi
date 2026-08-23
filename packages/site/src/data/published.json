@@ -11,5 +11,18 @@
     "maker": "operator",
     "sha256": "5475f0d64dd8c525d8a551a1d0c4823e10b8b397bb7379ee41f0c3566ffe2eb3",
     "sizeBytes": 433
+  },
+  {
+    "id": {
+      "value": "0ada8408-61c8-4549-9075-380cf4fcaa80"
+    },
+    "metadata": {
+      "title": "Tip Splitter",
+      "description": "Splits a bill with 10% tip.",
+      "tags": []
+    },
+    "maker": "operator",
+    "sha256": "9b9c883f0874d74b596a3fc5d75b1bdf9f8f546097b8f0e8af7aba2f5069fd7f",
+    "sizeBytes": 632
   }
 ]

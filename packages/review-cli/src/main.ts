@@ -8,6 +8,8 @@
 import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CloudFrontClient, CreateInvalidationCommand } from '@aws-sdk/client-cloudfront';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { S3Storage } from '@mimawsi/adapters-aws';
 import { fakePorts } from '@mimawsi/adapters-fake';
 import { injectCsp } from '@mimawsi/injector';
@@ -30,6 +32,10 @@ const STORE =
  * are real: approving still sends nobody an email.
  */
 const BUCKET = process.env.MIMAWSI_BUCKET;
+
+/** Where published bytes must land for the runner to serve them. */
+const SITE_BUCKET = process.env.MIMAWSI_SITE_BUCKET;
+const RUNNER_DISTRIBUTION = process.env.MIMAWSI_RUNNER_DISTRIBUTION;
 const ports = BUCKET
   ? { ...fakePorts(STORE), storage: new S3Storage(BUCKET) }
   : fakePorts(STORE);
@@ -52,8 +58,44 @@ async function publish(id: { value: string }): Promise<Tool> {
 
   const tool = await ports.storage.publish(id, withPolicy);
 
+  // The dev server's copy. Gitignored (RULE-5: bytes live in S3, git holds only
+  // metadata), so CI never sees it and it cannot reach production this way.
   await mkdir(join(SITE, 'public/tools'), { recursive: true });
   await writeFile(join(SITE, `public/tools/${id.value}.html`), withPolicy);
+
+  // Production. The runner distribution serves the site bucket at /tools, so this
+  // is what actually makes a published tool runnable. Without it the catalogue
+  // lists a tool whose bytes 404 — which is precisely what happened to the first
+  // one published: the entry deployed, the file did not, because the only copy
+  // was the gitignored local one.
+  //
+  // Done here, by the operator, rather than in the deploy workflow: RULE-17a
+  // keeps Actions away from published-prefix credentials.
+  if (SITE_BUCKET) {
+    await new S3Client({}).send(
+      new PutObjectCommand({
+        Bucket: SITE_BUCKET,
+        Key: `tools/${id.value}.html`,
+        Body: withPolicy,
+        ContentType: 'text/html; charset=utf-8',
+      }),
+    );
+
+    // A new key needs no invalidation, but republishing the same id does, and the
+    // caller cannot tell which case they are in. Invalidating one path is free
+    // (1,000/month) and being right matters more than being frugal here.
+    if (RUNNER_DISTRIBUTION) {
+      await new CloudFrontClient({}).send(
+        new CreateInvalidationCommand({
+          DistributionId: RUNNER_DISTRIBUTION,
+          InvalidationBatch: {
+            CallerReference: `publish-${id.value}-${tool.sha256.slice(0, 12)}`,
+            Paths: { Quantity: 1, Items: [`/${id.value}.html`] },
+          },
+        }),
+      );
+    }
+  }
 
   // Writing into src/ is what makes the dev server re-render — the local stand-in
   // for a catalogue rebuild and a CDN invalidation.
