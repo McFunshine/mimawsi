@@ -35,16 +35,27 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "pending" {
 
 # A submission that is rejected, or simply never reviewed, should not sit here
 # forever. Declarative expiry (RULE-38) means no operator action and no scheduled
-# job to forget about. The window is deliberately longer than the DynamoDB TTL so
-# a record never outlives its bytes.
+# job to forget about. It was written when submissions were to be DynamoDB rows
+# with a TTL, and paired with that TTL so a record never outlived its bytes; the
+# store is now a single bucket, so the pairing no longer applies. See the rule.
 resource "aws_s3_bucket_lifecycle_configuration" "pending" {
   bucket = aws_s3_bucket.pending.id
 
+  # Scoped to the uploaded bytes, and to nothing else. An unscoped filter matches
+  # every object in the bucket, which now includes index.json — the record of every
+  # submission and every published tool — and the published bytes themselves. That
+  # rule would have quietly deleted the entire store on its ninetieth day.
+  #
+  # A pending record can now outlive its bytes, where before a DynamoDB TTL kept
+  # the two aligned. That surfaces as a NotFoundError when the review CLI reaches
+  # for a file that expired, which is the honest answer: the file is genuinely gone.
   rule {
     id     = "expire-unreviewed-uploads"
     status = "Enabled"
 
-    filter {}
+    filter {
+      prefix = "pending/"
+    }
 
     expiration {
       days = 90

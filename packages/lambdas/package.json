@@ -3,10 +3,17 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "scripts": { "dev": "node --experimental-strip-types src/serve.ts" },
+  "scripts": {
+    "dev": "node --experimental-strip-types src/serve.ts",
+    "build": "esbuild src/handler.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/handler.mjs --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\""
+  },
   "dependencies": {
     "@mimawsi/adapters-fake": "*",
     "@mimawsi/domain": "*",
-    "@mimawsi/ports": "*"
+    "@mimawsi/ports": "*",
+    "@mimawsi/adapters-aws": "*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
   }
 }
