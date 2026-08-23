@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -41,8 +41,14 @@ describe('LocalDirectoryStorage durability', () => {
 
 describe('LocalDirectoryStorage path safety', () => {
   it('refuses an id that would escape the store', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'mimawsi-traversal-'));
-    await writeFile(join(root, '..', 'SECRET.html'), 'top secret', 'utf8');
+    // The store sits *inside* a directory this test owns, so the file the
+    // traversal reaches for is still somewhere the test is allowed to write.
+    // Writing it to the store's parent would land it wherever tmpdir happens to
+    // be — which, when TMPDIR is unset, is the working directory.
+    const enclosing = await mkdtemp(join(tmpdir(), 'mimawsi-traversal-'));
+    const root = join(enclosing, 'store');
+    await mkdir(root, { recursive: true });
+    await writeFile(join(enclosing, 'SECRET.html'), 'top secret', 'utf8');
     const storage = new LocalDirectoryStorage(root);
 
     for (const value of ['../../SECRET', '../SECRET', '..%2fSECRET', 'a/../../SECRET']) {
@@ -51,7 +57,7 @@ describe('LocalDirectoryStorage path safety', () => {
     }
 
     // The file it was reaching for is still there and was never returned.
-    expect(await readFile(join(root, '..', 'SECRET.html'), 'utf8')).toBe('top secret');
+    expect(await readFile(join(enclosing, 'SECRET.html'), 'utf8')).toBe('top secret');
   });
 
   it('still serves a legitimate id', async () => {
