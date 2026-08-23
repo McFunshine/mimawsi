@@ -50,3 +50,7 @@ backend.hcl
 
 # Test stores, if a run ever lands them here rather than in TMPDIR
 /mimawsi-*/
+
+# Playwright compiles specs into this next to the runner; 18 of them were
+# committed to a public repo by a careless `git add -A`.
+/playwright-transform-cache-*/
