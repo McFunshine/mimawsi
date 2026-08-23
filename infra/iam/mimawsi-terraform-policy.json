@@ -47,7 +47,10 @@
         "lambda:ListVersionsByFunction",
         "lambda:TagResource",
         "lambda:UntagResource",
-        "lambda:ListTags"
+        "lambda:ListTags",
+        "lambda:GetFunctionCodeSigningConfig",
+        "lambda:GetFunctionConcurrency",
+        "lambda:GetRuntimeManagementConfig"
       ],
       "Resource": "arn:aws:lambda:*:ACCOUNT_ID:function:mimawsi-*"
     },
@@ -104,6 +107,31 @@
           "iam:PassedToService": "lambda.amazonaws.com"
         }
       }
+    },
+    {
+      "Sid": "LogGroupsForThisProjectOnly",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:PutRetentionPolicy",
+        "logs:DeleteRetentionPolicy",
+        "logs:TagResource",
+        "logs:UntagResource",
+        "logs:ListTagsForResource"
+      ],
+      "Resource": [
+        "arn:aws:logs:*:ACCOUNT_ID:log-group:/aws/lambda/mimawsi-*",
+        "arn:aws:logs:*:ACCOUNT_ID:log-group:/aws/lambda/mimawsi-*:*"
+      ]
+    },
+    {
+      "Sid": "DescribingLogGroupsCannotBeScopedByName",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogGroups"
+      ],
+      "Resource": "*"
     }
   ]
 }

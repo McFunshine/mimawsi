@@ -28,3 +28,19 @@ IAM > Policies > Create policy > JSON, paste, name it `mimawsi-terraform`.
 Then IAM > Users > `mimawsi-deploy` > Add permissions > Attach policies directly.
 
 Requires an admin identity: `mimawsi-deploy` cannot grant itself permissions.
+
+## Reading back is not the same as creating
+
+Terraform needs more than the actions that change a resource: after any write it
+re-reads the whole thing, including parts of it this project never sets. Creating
+the upload Lambda succeeded and then the apply failed on
+`lambda:GetFunctionCodeSigningConfig` — a feature not in use, on a function that
+had just been created successfully.
+
+`GetFunctionConcurrency` and `GetRuntimeManagementConfig` are the same story. All
+three are reads, none of them grant anything, and leaving them out only produces
+an apply that half-succeeds and then errors.
+
+Worth knowing when adding any new resource type: enumerate the *reads* the
+provider performs, not just the writes, or the first apply will create something
+and then fail to describe it.
