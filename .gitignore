@@ -47,3 +47,6 @@ crash.log
 # Terraform backend config carries the state bucket name
 backend.hcl
 !backend.hcl.example
+
+# Test stores, if a run ever lands them here rather than in TMPDIR
+/mimawsi-*/

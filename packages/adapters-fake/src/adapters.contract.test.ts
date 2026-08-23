@@ -1,6 +1,6 @@
 import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { tempRoot } from './temp-root.ts';
 import {
   describeIdentityPort, describeNotifierPort, describeScannerPort, describeStoragePort,
 } from '@mimawsi/ports/contracts';
@@ -10,7 +10,7 @@ import { AlwaysPassesScanner, LocalDirectoryStorage, RecordingNotifier, StubIden
 // 4.2 and 5.4 — with the contract suites untouched (RULE-46).
 describeStoragePort(
   'LocalDirectoryStorage',
-  async () => new LocalDirectoryStorage(await mkdtemp(join(tmpdir(), 'mimawsi-store-'))),
+  async () => new LocalDirectoryStorage(await mkdtemp(join(tempRoot(), 'mimawsi-store-'))),
 );
 describeIdentityPort('StubIdentity', async () => new StubIdentity());
 describeScannerPort('AlwaysPassesScanner', async () => new AlwaysPassesScanner());

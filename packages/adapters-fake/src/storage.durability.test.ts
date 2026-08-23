@@ -1,10 +1,10 @@
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { tempRoot } from './temp-root.ts';
 import { describe, expect, it } from 'vitest';
 import { LocalDirectoryStorage } from './index.ts';
 
-const store = async () => new LocalDirectoryStorage(await mkdtemp(join(tmpdir(), 'mimawsi-durability-')));
+const store = async () => new LocalDirectoryStorage(await mkdtemp(join(tempRoot(), 'mimawsi-durability-')));
 const maker = { value: 'maker-1' };
 const metadata = { title: 'Tool', description: 'd', tags: [] };
 
@@ -16,7 +16,7 @@ describe('LocalDirectoryStorage durability', () => {
   });
 
   it('refuses to read a corrupted index rather than silently emptying the store', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'mimawsi-durability-'));
+    const root = await mkdtemp(join(tempRoot(), 'mimawsi-durability-'));
     const storage = new LocalDirectoryStorage(root);
     await storage.submit({ bytes: new TextEncoder().encode('<p>one</p>'), metadata, maker });
 
@@ -45,7 +45,7 @@ describe('LocalDirectoryStorage path safety', () => {
     // traversal reaches for is still somewhere the test is allowed to write.
     // Writing it to the store's parent would land it wherever tmpdir happens to
     // be — which, when TMPDIR is unset, is the working directory.
-    const enclosing = await mkdtemp(join(tmpdir(), 'mimawsi-traversal-'));
+    const enclosing = await mkdtemp(join(tempRoot(), 'mimawsi-traversal-'));
     const root = join(enclosing, 'store');
     await mkdir(root, { recursive: true });
     await writeFile(join(enclosing, 'SECRET.html'), 'top secret', 'utf8');
@@ -61,7 +61,7 @@ describe('LocalDirectoryStorage path safety', () => {
   });
 
   it('still serves a legitimate id', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'mimawsi-traversal-'));
+    const root = await mkdtemp(join(tempRoot(), 'mimawsi-traversal-'));
     const storage = new LocalDirectoryStorage(root);
     const bytes = new TextEncoder().encode('<p>fine</p>');
     const submission = await storage.submit({ bytes, metadata, maker });
