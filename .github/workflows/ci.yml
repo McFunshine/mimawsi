@@ -146,10 +146,29 @@ jobs:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Publish to S3
+      # Two syncs, because the bucket holds more than this build produces.
+      #
+      # Published tool bytes live in tools/ and are gitignored (RULE-5: git holds
+      # metadata, bytes live in S3), so they are not in dist/. A single
+      # `sync --delete` treats dist/ as the complete desired state and therefore
+      # deleted every published tool on every deploy — the catalogue kept listing
+      # them and the files kept vanishing, which looked like a publishing bug
+      # rather than a deploy one.
+      #
+      # Everything except tools/ is still mirrored exactly, so stale pages are
+      # still removed.
+      - name: Publish the site to S3
         run: |
           aws s3 sync packages/site/dist/ "s3://${{ vars.SITE_BUCKET }}/" \
             --delete \
+            --exclude "tools/*" \
+            --cache-control "public, max-age=300, must-revalidate"
+
+      # tools/ separately and without --delete: this uploads the committed seed
+      # tool, and must never remove what the publish step put there.
+      - name: Publish the seed tools, without deleting published ones
+        run: |
+          aws s3 sync packages/site/dist/tools/ "s3://${{ vars.SITE_BUCKET }}/tools/" \
             --cache-control "public, max-age=300, must-revalidate"
 
       - name: Invalidate the CDN
