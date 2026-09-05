@@ -76,5 +76,18 @@
     "maker": "108056334774193947679",
     "sha256": "2e92937bc340c2feae0f844524ab4c6daeb4755782255b667a8f78f96885583c",
     "sizeBytes": 5302
+  },
+  {
+    "id": {
+      "value": "bc6c0502-16d1-4937-9387-ff48a05f2780"
+    },
+    "metadata": {
+      "title": "Text Tidy",
+      "description": "format some text",
+      "tags": []
+    },
+    "maker": "operator",
+    "sha256": "c02799a5c424d3153458ebcc1f59d199bd7914d22f5bb63aacc326ab1390fd8a",
+    "sizeBytes": 5461
   }
 ]
