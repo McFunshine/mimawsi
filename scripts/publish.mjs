@@ -80,7 +80,11 @@ if (changed === '') {
 }
 const unexpected = changed
   .split('\n')
-  .map((line) => line.slice(3))
+  // Porcelain is a two-character status followed by whitespace. Slicing a fixed
+  // three characters ate the first letter of the path when the status was one
+  // character wide, and the script then rejected the very file it had just
+  // written as unexpected.
+  .map((line) => line.slice(2).trim())
   .filter((path) => path !== 'packages/site/src/data/published.json');
 if (unexpected.length > 0) {
   die(`approve changed files it should not have:\n  ${unexpected.join('\n  ')}`);

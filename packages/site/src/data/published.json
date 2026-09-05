@@ -37,5 +37,18 @@
     "maker": "operator",
     "sha256": "7d33f7a4e8c0f6df73dd292c673723c7dd2a37b0aea3ab03ae391c488b016c6f",
     "sizeBytes": 3954
+  },
+  {
+    "id": {
+      "value": "69ec0268-7132-4997-b3f1-cce72c7ac3f3"
+    },
+    "metadata": {
+      "title": "Dice Roller",
+      "description": "Rolls up to six dice and totals them.",
+      "tags": []
+    },
+    "maker": "operator",
+    "sha256": "618aefa14928c773b9a62088ea1d7635d25e92d98430b23d04ff58091cf9dd60",
+    "sizeBytes": 1488
   }
 ]
