@@ -135,3 +135,20 @@ output "submit_url" {
   description = "Set as the PUBLIC_API_ORIGIN GitHub variable so the built /share page posts here."
   value       = aws_lambda_function_url.submit.function_url
 }
+
+# Publishing needs these, and reading them from state means one source of truth
+# rather than three names copied into a script, a workflow and a shell history.
+output "pending_bucket" {
+  description = "Where submissions land and the store's index lives."
+  value       = aws_s3_bucket.pending.id
+}
+
+output "site_bucket" {
+  description = "What the catalogue and runner distributions serve."
+  value       = var.site_bucket
+}
+
+output "runner_distribution" {
+  description = "Distribution serving /tools, invalidated when a tool is republished."
+  value       = aws_cloudfront_distribution.runner.id
+}

@@ -19,7 +19,8 @@
     "dev:site": "npm run dev --workspace @mimawsi/site",
     "dev:runner": "npm run dev --workspace @mimawsi/runner",
     "dev:api": "npm run dev --workspace @mimawsi/lambdas",
-    "review": "npm run start --workspace @mimawsi/review-cli --"
+    "review": "npm run start --workspace @mimawsi/review-cli --",
+    "publish": "node scripts/publish.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

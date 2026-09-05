@@ -37,6 +37,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The catalogue-only check diffs against the previous commit, and the
+          # default shallow checkout does not fetch it.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -63,14 +67,42 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # Publishing a tool changes exactly one tracked file: the catalogue index.
+      # The tool's bytes are gitignored and went to S3 during review, and no code
+      # is touched at all — so the browser suite is 86 seconds spent proving that
+      # code nobody edited still works. The unit suite still runs, and so does the
+      # build, which is what would actually catch a malformed index.
+      #
+      # Deliberately narrow: any other changed path, including the workflow file
+      # itself, means a normal run. The failure this must not have is a code
+      # change slipping through dressed as a publish.
+      - name: Is this a catalogue-only change?
+        id: scope
+        run: |
+          base='${{ github.event.before }}'
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "content_only=false" >> "$GITHUB_OUTPUT"
+            echo "No previous commit to compare against; running everything."
+            exit 0
+          fi
+          changed=$(git diff --name-only "$base" HEAD)
+          echo "Changed files:"; echo "$changed" | sed 's/^/  /'
+          if [ -n "$changed" ] && [ -z "$(echo "$changed" | grep -v '^packages/site/src/data/published.json$')" ]; then
+            echo "content_only=true" >> "$GITHUB_OUTPUT"
+            echo "Catalogue index only — skipping the browser suite."
+          else
+            echo "content_only=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # No browser install step: the container has them. Playwright starts the
       # catalogue, runner and api itself (webServer in playwright.config.ts), so
       # there is nothing to launch here either.
       - name: End-to-end tests
+        if: steps.scope.outputs.content_only != 'true'
         run: npm run test:e2e
 
       - name: Upload Playwright report
-        if: failure()
+        if: failure() && steps.scope.outputs.content_only != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
