@@ -71,7 +71,12 @@ export class LocalDirectoryStorage implements StoragePort {
     return result;
   }
 
-  async submit(input: { bytes: Uint8Array; metadata: ToolMetadata; maker: UserId }): Promise<Submission> {
+  async submit(input: {
+    bytes: Uint8Array;
+    metadata: ToolMetadata;
+    maker: UserId;
+    makerEmail?: string | undefined;
+  }): Promise<Submission> {
     return this.mutate(async () => {
       const state = await this.read();
       const hash = sha256(input.bytes);
@@ -88,6 +93,9 @@ export class LocalDirectoryStorage implements StoragePort {
         state: 'pending',
         sha256: hash,
         sizeBytes: input.bytes.byteLength,
+        ...(input.makerEmail === undefined || input.makerEmail === ''
+          ? {}
+          : { makerEmail: input.makerEmail }),
       };
 
       await this.writeFileAt(`pending/${submission.id.value}.html`, input.bytes);

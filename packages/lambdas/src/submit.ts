@@ -79,6 +79,10 @@ export async function submit(ports: SubmitDeps, request: SubmitRequest): Promise
       bytes,
       metadata: { title, description, tags: [] },
       maker: maker.id,
+      // Contact only, and only if Google verified it. The identity stored is
+      // `maker.id`, the account — this is here so a rejection can say why to the
+      // person who sent the file, and is used for nothing else.
+      makerEmail: maker.email,
     });
     return { status: 201, body: { id: submission.id.value, state: submission.state } };
   } catch (error) {

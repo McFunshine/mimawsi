@@ -22,6 +22,16 @@ export interface Maker {
   readonly id: UserId;
   /** Display-only. Duplicates are permitted — identity is the account, not the name. */
   readonly displayName: string;
+  /**
+   * Contact address, and nothing else. Never an identity: `id` is the account,
+   * because Google's own guidance is that an address can change hands, and a
+   * lookup keyed on email would hand a later holder someone else's submissions.
+   *
+   * Optional because the operator token carries no address, and because a Google
+   * account whose address is unverified supplies none — an unverified address
+   * belongs to whoever claimed it, not to whoever holds it.
+   */
+  readonly email?: string;
 }
 
 export interface ToolMetadata {
@@ -38,6 +48,16 @@ export interface Submission {
   /** SHA-256 of the file bytes. Duplicate submissions are refused on this. */
   readonly sha256: string;
   readonly sizeBytes: number;
+  /**
+   * Where to write if this is rejected. Kept beside the submission rather than
+   * looked up later, because by the time a rejection is written the maker may
+   * have changed their address and the old one is where they are expecting to
+   * hear. Absent for anything submitted with the operator token, and for
+   * submissions predating this field.
+   */
+  readonly makerEmail?: string;
+  /** Free text for a human reading the store. Never shown to the maker. */
+  readonly makerNote?: string;
 }
 
 /** A published tool, as the catalogue sees it. */

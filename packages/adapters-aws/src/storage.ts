@@ -82,7 +82,12 @@ export class S3Storage implements StoragePort {
     return `${this.prefix}${suffix}`;
   }
 
-  async submit(input: { bytes: Uint8Array; metadata: ToolMetadata; maker: UserId }): Promise<Submission> {
+  async submit(input: {
+    bytes: Uint8Array;
+    metadata: ToolMetadata;
+    maker: UserId;
+    makerEmail?: string | undefined;
+  }): Promise<Submission> {
     const hash = sha256(input.bytes);
 
     return this.mutate(async (state) => {
@@ -98,6 +103,12 @@ export class S3Storage implements StoragePort {
         state: 'pending',
         sha256: hash,
         sizeBytes: input.bytes.byteLength,
+        // Omitted rather than stored empty, so "we have no address" and "the
+        // address is the empty string" cannot be confused by anything reading this
+        // back — including the rejection path, which must not try to send to ''.
+        ...(input.makerEmail === undefined || input.makerEmail === ''
+          ? {}
+          : { makerEmail: input.makerEmail }),
       };
 
       // Bytes first. An index entry pointing at an object that does not exist is a

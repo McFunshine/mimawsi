@@ -86,7 +86,20 @@ export function googleIdentity(
         }
 
         const name = typeof payload.name === 'string' ? payload.name.trim() : '';
-        return { id: { value: sub }, displayName: name === '' ? 'Maker' : name };
+
+        // Taken only when Google says it verified it. An unverified address is a
+        // string the account holder typed, so sending a rejection to it would mail
+        // a stranger about someone else's submission. Absent is the safe answer:
+        // the reason is still recorded, it just is not posted anywhere.
+        const verified = payload.email_verified === true || payload.email_verified === 'true';
+        const address = typeof payload.email === 'string' ? payload.email.trim() : '';
+        const email = verified && address !== '' ? address : undefined;
+
+        return {
+          id: { value: sub },
+          displayName: name === '' ? 'Maker' : name,
+          ...(email === undefined ? {} : { email }),
+        };
       } catch {
         // Expired, wrong audience, wrong issuer, bad signature, malformed — all
         // of them mean the same thing to a caller, and saying which would help

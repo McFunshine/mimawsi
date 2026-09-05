@@ -48,6 +48,12 @@ export interface SubmissionWriter {
     bytes: Uint8Array;
     metadata: ToolMetadata;
     maker: UserId;
+    /**
+     * Where to write if this is rejected. Optional: the operator token carries no
+     * address, and a Google account with an unverified one supplies none. A
+     * rejection without it is still recorded, it just is not posted.
+     */
+    makerEmail?: string | undefined;
   }): Promise<Submission>;
 }
 
