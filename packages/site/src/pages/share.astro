@@ -62,6 +62,17 @@ const apiOrigin =
   <div id="auth" hidden>
     <p class="prompt">Signing in lets us attribute the tool to you and rate-limit abuse.</p>
     <button id="signin" type="button">Sign in with Google</button>
+    {/*
+      Said plainly rather than left to be discovered. The button does not talk to
+      Google and will ask for an operator token instead — a control that looks
+      like it does something it does not is worse than no control at all. The
+      note goes when the exchange is real (task-3.4); the button keeps its name
+      throughout, because TC-T01 is frozen and clicks it by that name (RULE-47).
+    */}
+    <p class="placeholder">
+      <strong>Not wired to Google yet.</strong> This button asks for an operator
+      token instead, so only the operator can submit while sign-in is being built.
+    </p>
   </div>
 
   <p id="status" role="status" class="status"></p>
@@ -174,10 +185,43 @@ const apiOrigin =
 
   signin.addEventListener('click', () => {
     void (async () => {
-      const signedIn = await (
-        await fetch(new URL('/session', api), { method: 'POST', headers: authHeaders() })
-      ).json();
-      sessionStorage.setItem(TOKEN_KEY, signedIn.token);
+      const response = await fetch(new URL('/session', api), {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+
+      if (response.ok) {
+        const signedIn = await response.json();
+        sessionStorage.setItem(TOKEN_KEY, signedIn.token);
+        await send();
+        return;
+      }
+
+      // Google sign-in does not exist yet (task-3.4), and the deployed endpoint
+      // knows only an operator token. Without this branch the button could only
+      // ever fail: it asked to sign in, the endpoint said "authentication
+      // required", and there was nowhere to supply the one credential that
+      // works. Asking for it is honest about where we are; the whole branch
+      // disappears when the Google exchange lands.
+      const supplied = window.prompt('Operator token (Google sign-in is not live yet)');
+      if (supplied === null || supplied.trim() === '') {
+        status.textContent = 'Sign-in cancelled. Nothing has been sent.';
+        return;
+      }
+
+      sessionStorage.setItem(TOKEN_KEY, supplied.trim());
+      const retried = await fetch(new URL('/session', api), {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+
+      if (!retried.ok) {
+        // Not kept, so a bad token cannot silently poison every later attempt.
+        sessionStorage.removeItem(TOKEN_KEY);
+        status.textContent = 'That token was not accepted. Nothing has been sent.';
+        return;
+      }
+
       await send();
     })();
   });
@@ -224,6 +268,13 @@ const apiOrigin =
     border: 1px solid var(--accent); border-radius: 8px;
   }
   .prompt { color: var(--dim); font-size: .9rem; margin: 1rem 0 .5rem; }
+  .placeholder {
+    margin: 0.6rem 0 0;
+    font-size: 0.9rem;
+    opacity: 0.75;
+    max-width: 34rem;
+  }
+
   .status { color: var(--ok); font-weight: 600; font-size: .9rem; min-height: 1.5rem; }
   #preview iframe {
     width: 100%; height: 30rem; border: 1px solid var(--line);
