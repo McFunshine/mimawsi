@@ -50,5 +50,18 @@
     "maker": "operator",
     "sha256": "618aefa14928c773b9a62088ea1d7635d25e92d98430b23d04ff58091cf9dd60",
     "sizeBytes": 1488
+  },
+  {
+    "id": {
+      "value": "edecb2f2-55d2-41d4-8c17-3981ee8debbd"
+    },
+    "metadata": {
+      "title": "Coin Streak",
+      "description": "Finds the longest run of heads in 100 flips.",
+      "tags": []
+    },
+    "maker": "operator",
+    "sha256": "f1d522defc1f60faf0bcffa2bf16d117c65c6829b8cf86e52197762cec0d66cb",
+    "sizeBytes": 732
   }
 ]
