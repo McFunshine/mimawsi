@@ -66,6 +66,14 @@ export function googleIdentity(
         const { payload } = await jwtVerify(presented, keys, {
           audience: clientId,
           issuer: GOOGLE_ISSUERS,
+          // Pinned, so the algorithm is ours to decide rather than the token's.
+          // A verifier that accepts whatever the header names is the shape of
+          // every algorithm-substitution attack; Google signs these RS256.
+          algorithms: ['RS256'],
+          // OIDC Core allows a little leeway for clock drift. Lambda clocks are
+          // NTP-disciplined so this is close to unnecessary, but a token refused
+          // for being one second early is a confusing failure to debug.
+          clockTolerance: '30s',
         });
 
         // sub is the account, and it is what gets stored. Email is deliberately

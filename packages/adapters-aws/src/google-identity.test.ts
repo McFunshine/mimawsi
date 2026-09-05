@@ -99,3 +99,23 @@ describe('googleIdentity', () => {
     expect((await googleIdentity(t, OURS, keys).current())?.displayName).toBe('Maker');
   });
 });
+
+describe('algorithm pinning', () => {
+  it('refuses a token signed with a different algorithm', async () => {
+    // The verifier decides the algorithm, never the token. A verifier that
+    // trusts the header's `alg` is the shape of every substitution attack.
+    const { SignJWT: Sign } = await import('jose');
+    const secret = new Uint8Array(32).fill(7);
+    const hmacToken = await new Sign({
+      iss: 'https://accounts.google.com',
+      aud: OURS,
+      sub: '1',
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('1h')
+      .sign(secret);
+
+    expect(await googleIdentity(hmacToken, OURS, async () => secret as never).current()).toBeNull();
+  });
+});
