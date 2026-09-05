@@ -7,6 +7,11 @@ import Base from '../layouts/Base.astro';
 // local and works regardless — but submitting says so rather than failing silently.
 const apiOrigin =
   import.meta.env.PUBLIC_API_ORIGIN ?? (import.meta.env.DEV ? 'http://localhost:4323' : null);
+
+// Google sign-in appears only when a client id is configured. Without one the
+// page keeps the phase-0 flow, which is what the local server and the frozen
+// journey test drive — so configuring Google cannot break either.
+const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID ?? null;
 ---
 <Base title="Share a tool — mimawsi">
   <p class="back"><a href="/">&larr; All tools</a></p>
@@ -59,7 +64,11 @@ const apiOrigin =
     it succeeds — bytes must not reach storage while anonymous (AC-19). The button
     only exists once submit has been attempted.
   */}
-  <div id="auth" hidden>
+  {googleClientId && (
+    <script is:inline async defer src="https://accounts.google.com/gsi/client"></script>
+  )}
+
+  <div id="auth" hidden data-google-client-id={googleClientId ?? ''}>
     <p class="prompt">Signing in lets us attribute the tool to you and rate-limit abuse.</p>
     <button id="signin" type="button">Sign in with Google</button>
     {/*
@@ -69,7 +78,7 @@ const apiOrigin =
       note goes when the exchange is real (task-3.4); the button keeps its name
       throughout, because TC-T01 is frozen and clicks it by that name (RULE-47).
     */}
-    <p class="placeholder">
+    <p class="placeholder" id="placeholder-note" hidden>
       <strong>Not wired to Google yet.</strong> This button asks for an operator
       token instead, so only the operator can submit while sign-in is being built.
     </p>
@@ -183,8 +192,74 @@ const apiOrigin =
     })();
   });
 
+  /**
+   * The Google client id, or '' when sign-in is not configured. Read from the
+   * markup rather than inlined here so the page has one source for it.
+   */
+  const googleClientId = auth.dataset.googleClientId ?? '';
+  const placeholderNote = document.getElementById('placeholder-note') as HTMLElement | null;
+  if (placeholderNote && googleClientId === '') {
+    // Only shown when the button really is a stand-in.
+    placeholderNote.hidden = false;
+  }
+
+  /**
+   * Sign in with Google, resolving to the ID token it issues.
+   *
+   * The token *is* the session: it is a JWT Google signed, the endpoint verifies
+   * it, and it lasts about an hour. No cookie, no exchange with our own server,
+   * no client secret — which is what makes this workable on a static site.
+   */
+  function signInWithGoogle(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const google = (window as unknown as { google?: any }).google;
+      if (!google?.accounts?.id) {
+        reject(new Error('Google sign-in did not load'));
+        return;
+      }
+
+      google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: (response: { credential?: string }) => {
+          if (response.credential) {
+            resolve(response.credential);
+          } else {
+            reject(new Error('no credential returned'));
+          }
+        },
+      });
+
+      // A button rendered by Google, into a container next to ours. Google's own
+      // button is required for the credential flow to work reliably, and it
+      // carries the branding their terms ask for; ours stays because TC-T01
+      // clicks it by name (RULE-47) and because it is what starts this.
+      let host = document.getElementById('google-button');
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'google-button';
+        signin.insertAdjacentElement('afterend', host);
+      }
+      host.replaceChildren();
+      google.accounts.id.renderButton(host, { theme: 'outline', size: 'large' });
+
+      status.textContent = 'Choose a Google account to continue.';
+    });
+  }
+
   signin.addEventListener('click', () => {
     void (async () => {
+      if (googleClientId !== '') {
+        try {
+          const credential = await signInWithGoogle();
+          sessionStorage.setItem(TOKEN_KEY, credential);
+          await send();
+        } catch (error) {
+          status.textContent =
+            error instanceof Error ? `Sign-in failed: ${error.message}` : 'Sign-in failed.';
+        }
+        return;
+      }
+
       const response = await fetch(new URL('/session', api), {
         method: 'POST',
         headers: authHeaders(),

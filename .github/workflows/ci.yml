@@ -163,6 +163,9 @@ jobs:
           # frame and the submit endpoint rather than emitting a localhost URL.
           PUBLIC_RUNNER_ORIGIN: ${{ vars.PUBLIC_RUNNER_ORIGIN }}
           PUBLIC_API_ORIGIN: ${{ vars.PUBLIC_API_ORIGIN }}
+          # Public by design: Google needs it in the browser. Not the client
+          # secret, which this flow never uses and which is not stored anywhere.
+          PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.PUBLIC_GOOGLE_CLIENT_ID }}
 
       - name: Refuse to publish a build pointing at localhost
         run: |

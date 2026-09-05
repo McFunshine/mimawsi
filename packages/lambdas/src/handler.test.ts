@@ -23,6 +23,7 @@ const storage = {
 const deps = (): RouteDeps => ({
   storage: { submit: storage.submit.bind({ submitted: [] }) },
   operatorToken: TOKEN,
+  googleClientId: '',
   configured: true,
 });
 

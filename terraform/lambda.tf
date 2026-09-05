@@ -16,6 +16,22 @@ variable "operator_token" {
   sensitive   = true
 }
 
+variable "google_client_id" {
+  description = <<-TEXT
+    The OAuth client id makers sign in with. Public by design — it ships in the
+    page, because Google's script needs it in the browser — so it is not a secret
+    and is not treated as one.
+
+    The client *secret* is deliberately absent. This is the ID-token flow: the
+    browser signs in and the Lambda verifies the resulting token against Google's
+    published keys, so there is no secret to hold, leak or rotate.
+
+    Empty disables Google sign-in and leaves only the operator token.
+  TEXT
+  type        = string
+  default     = ""
+}
+
 variable "lambda_role_name" {
   description = "Execution role for the Lambdas. Created by the operator in the console — the Terraform identity can read IAM but not write it."
   type        = string
@@ -60,6 +76,7 @@ resource "aws_lambda_function" "submit" {
     variables = {
       MIMAWSI_BUCKET         = aws_s3_bucket.pending.id
       MIMAWSI_OPERATOR_TOKEN = var.operator_token
+      GOOGLE_CLIENT_ID       = var.google_client_id
     }
   }
 }

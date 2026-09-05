@@ -5,3 +5,5 @@ site_bucket = "mimawsi-site-000000000000"
 # Any high-entropy string; generate with:
 #   node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
 operator_token = "replace-me"
+
+google_client_id = "000000000000-example.apps.googleusercontent.com"

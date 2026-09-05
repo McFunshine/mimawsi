@@ -10,8 +10,9 @@
  * preflight never reaches this code and the allowed origin is infrastructure
  * (reviewable in Terraform) rather than a string in a handler.
  */
-import { S3Storage, operatorIdentity } from '@mimawsi/adapters-aws';
+import { S3Storage, googleIdentity, operatorIdentity } from '@mimawsi/adapters-aws';
 import { MAX_TOOL_BYTES } from '@mimawsi/domain';
+import type { Maker } from '@mimawsi/domain';
 import { submit } from './submit.ts';
 import type { SubmitDeps, SubmitRequest } from './submit.ts';
 
@@ -70,10 +71,37 @@ function bodyOf(event: FunctionUrlEvent): SubmitRequest {
   return parsed as SubmitRequest;
 }
 
+/**
+ * The caller is whoever the token says they are, by either mechanism.
+ *
+ * The operator token is tried first because it is a string comparison, while
+ * verifying a Google token may fetch Google's signing keys. Both are checked
+ * against the same bearer header, so nothing about the request has to say which
+ * kind it is — a token either verifies or it does not.
+ *
+ * Two mechanisms coexist deliberately. Google is how makers sign in; the operator
+ * token is how scripts and the publishing path authenticate, and it does not
+ * depend on a browser or on Google being reachable. Removing it would mean an
+ * outage at Google stopped the operator publishing.
+ */
+function whoever(presented: string | null, deps: RouteDeps): { current: () => Promise<Maker | null> } {
+  return {
+    async current(): Promise<Maker | null> {
+      const asOperator = await operatorIdentity(presented, deps.operatorToken).current();
+      if (asOperator) {
+        return asOperator;
+      }
+      return googleIdentity(presented, deps.googleClientId).current();
+    },
+  };
+}
+
 /** What routing needs. Env and AWS clients are assembled at the edge, below. */
 export interface RouteDeps {
   readonly storage: SubmitDeps['storage'];
   readonly operatorToken: string;
+  /** Our Google OAuth client id. Empty until sign-in is configured. */
+  readonly googleClientId: string;
   /** False when the bucket is unset, so misconfiguration is reported as a fault. */
   readonly configured: boolean;
 }
@@ -86,7 +114,7 @@ export interface RouteDeps {
 export async function route(deps: RouteDeps, event: FunctionUrlEvent): Promise<Response> {
   const path = event.rawPath ?? '/';
   const method = event.requestContext?.http?.method ?? 'GET';
-  const identity = operatorIdentity(bearer(event.headers), deps.operatorToken);
+  const identity = whoever(bearer(event.headers), deps);
 
   // Misconfiguration is reported as a server fault, not as a refusal. A 401 here
   // would send the operator hunting for a bad token when the bucket is unset.
@@ -144,6 +172,7 @@ const bucket = process.env.MIMAWSI_BUCKET ?? '';
 const deps: RouteDeps = {
   storage: new S3Storage(bucket),
   operatorToken: process.env.MIMAWSI_OPERATOR_TOKEN ?? '',
+  googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
   configured: bucket !== '',
 };
 
