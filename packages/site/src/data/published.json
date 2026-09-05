@@ -63,5 +63,18 @@
     "maker": "operator",
     "sha256": "f1d522defc1f60faf0bcffa2bf16d117c65c6829b8cf86e52197762cec0d66cb",
     "sizeBytes": 732
+  },
+  {
+    "id": {
+      "value": "72b20e16-4b3e-4f1d-9e9e-0aaa988520c9"
+    },
+    "metadata": {
+      "title": "Anagram Check",
+      "description": "checks if is an anagram",
+      "tags": []
+    },
+    "maker": "108056334774193947679",
+    "sha256": "2e92937bc340c2feae0f844524ab4c6daeb4755782255b667a8f78f96885583c",
+    "sizeBytes": 5302
   }
 ]
