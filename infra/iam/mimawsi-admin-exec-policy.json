@@ -1,0 +1,65 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TheSubmissionStore",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::mimawsi-pending-ACCOUNT_ID/*"
+    },
+    {
+      "Sid": "ListTheStoreSoAMissingKeyIsA404",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": [
+        "arn:aws:s3:::mimawsi-pending-ACCOUNT_ID",
+        "arn:aws:s3:::mimawsi-admin-ACCOUNT_ID"
+      ]
+    },
+    {
+      "Sid": "ReadTheAllowlistOnly",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::mimawsi-admin-ACCOUNT_ID/*"
+    },
+    {
+      "Sid": "PublishToolsAndNothingElseOnTheSite",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::mimawsi-site-ACCOUNT_ID/tools/*"
+    },
+    {
+      "Sid": "RefreshTheCdnAfterPublishing",
+      "Effect": "Allow",
+      "Action": "cloudfront:CreateInvalidation",
+      "Resource": "arn:aws:cloudfront::ACCOUNT_ID:distribution/*"
+    },
+    {
+      "Sid": "TellAMakerWhatHappened",
+      "Effect": "Allow",
+      "Action": ["ses:SendEmail", "ses:SendRawEmail"],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "ses:FromAddress": "no-reply@mimawsi.com" }
+      }
+    },
+    {
+      "Sid": "WriteItsOwnLogs",
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+      "Resource": "arn:aws:logs:*:ACCOUNT_ID:log-group:/aws/lambda/mimawsi-*:*"
+    },
+    {
+      "Sid": "NeverDeleteAnything",
+      "Effect": "Deny",
+      "Action": ["s3:DeleteObject", "s3:DeleteObjectVersion", "s3:DeleteBucket"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "NeverWriteTheAllowlist",
+      "Effect": "Deny",
+      "Action": ["s3:PutObject", "s3:PutObjectAcl"],
+      "Resource": "arn:aws:s3:::mimawsi-admin-ACCOUNT_ID/*"
+    }
+  ]
+}
