@@ -29,6 +29,7 @@ async function deps(overrides: Partial<AdminDeps> = {}): Promise<AdminDeps> {
     identify: async () => APPROVER,
     allows: async (maker) => maker?.id.value === APPROVER.id.value,
     notifier: { notify: async () => undefined },
+    dispatcher: { announce: async () => [] },
     targets: {},
     googleClientId: 'client-123',
     configured: true,
@@ -65,6 +66,18 @@ describe('the approval endpoint', () => {
     expect(csp).toContain('https://accounts.google.com');
     // The tool policy must never be what an admin page runs under, and vice versa.
     expect(csp).toContain("form-action 'none'");
+  });
+
+  it('lets Google style its own button, and lets its popup talk back', async () => {
+    const response = await route(await deps(), get('/'));
+
+    // Both learned the hard way: without the first the button renders unstyled and
+    // the console reports a policy violation that reads like a sign-in fault;
+    // without the second the popup opens, the person signs in, and nothing returns.
+    expect(response.headers['content-security-policy']).toContain(
+      "style-src 'unsafe-inline' https://accounts.google.com",
+    );
+    expect(response.headers['cross-origin-opener-policy']).toBe('same-origin-allow-popups');
   });
 
   it('refuses the queue to somebody who is not signed in', async () => {

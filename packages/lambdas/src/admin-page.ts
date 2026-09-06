@@ -37,9 +37,17 @@ export function page(googleClientId: string): string {
   .approve { border-color: var(--good); color: var(--good); }
   .deny { border-color: var(--bad); color: var(--bad); }
   textarea { font: inherit; width: 100%; min-height: 5rem; margin: .5rem 0; padding: .5rem; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: inherit; }
+  .notelabel { display: block; margin-top: .75rem; font-size: .9rem; opacity: .8; }
+  textarea.note { min-height: 3.5rem; }
   .denybox { display: none; margin-top: .75rem; border-top: 1px dashed var(--line); padding-top: .75rem; }
   .denybox.open { display: block; }
   .warn { color: var(--bad); font-size: .85rem; }
+  pre.source {
+    margin-top: .75rem; padding: .75rem; max-height: 26rem; overflow: auto;
+    border: 1px solid var(--line); border-radius: 6px;
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: pre-wrap; word-break: break-word;
+  }
   .status { margin: 1rem 0; min-height: 1.5rem; }
   a { color: inherit; }
   .empty { opacity: .7; }
@@ -86,6 +94,18 @@ export function page(googleClientId: string): string {
     });
   }
 
+  function source(id) {
+    // Fetched, not navigated to. window.open starts a plain browser navigation,
+    // which carries no Authorization header, so /source answered 401 to a person
+    // who was signed in perfectly well. The token only ever travels on fetch.
+    return fetch('/source?id=' + encodeURIComponent(id), {
+      headers: { authorization: 'Bearer ' + token },
+    }).then(function (r) {
+      if (!r.ok) { throw new Error('could not read the submission: ' + r.status); }
+      return r.text();
+    });
+  }
+
   function text(tag, value, className) {
     var el = document.createElement(tag);
     el.textContent = value;
@@ -103,15 +123,40 @@ export function page(googleClientId: string): string {
     meta.textContent = item.sizeBytes + ' bytes · ' + item.sha256.slice(0, 12) + ' · maker ' + item.maker;
     el.appendChild(meta);
 
+    // Optional, and shown before the decision rather than after it. What gets
+    // written into the public record is whatever the approver actually wrote; an
+    // empty box produces a REVIEW.md that says nobody wrote anything, which is
+    // true, rather than a generated paragraph implying somebody did.
+    var noteLabel = text('label', 'Note for the public record (optional)');
+    noteLabel.className = 'notelabel';
+    var note = document.createElement('textarea');
+    note.className = 'note';
+    note.placeholder = 'Read it through; it does what it says and touches nothing else.';
+    el.appendChild(noteLabel);
+    el.appendChild(note);
+
     var row = document.createElement('div');
     row.className = 'row';
 
     var view = document.createElement('button');
     view.textContent = 'View source';
+    var pre = document.createElement('pre');
+    pre.className = 'source';
+    pre.hidden = true;
     view.addEventListener('click', function () {
-      // Opened as text/plain by the server, so an unreviewed submission is read
-      // rather than run. Never rendered on this origin.
-      window.open('/source?id=' + encodeURIComponent(item.id), '_blank', 'noopener');
+      if (!pre.hidden) { pre.hidden = true; view.textContent = 'View source'; return; }
+      view.disabled = true;
+      source(item.id)
+        .then(function (body) {
+          // textContent, never innerHTML. The submission is unreviewed and this is
+          // the one origin that can reach admin storage; putting it in the DOM as
+          // markup here is the exact thing the separate subdomain exists to stop.
+          pre.textContent = body;
+          pre.hidden = false;
+          view.textContent = 'Hide source';
+        })
+        .catch(function (e) { say(e.message, true); })
+        .then(function () { view.disabled = false; });
     });
 
     var approve = document.createElement('button');
@@ -139,7 +184,13 @@ export function page(googleClientId: string): string {
     box.appendChild(remedy);
 
     if (!item.contactable) {
-      box.appendChild(text('p', 'This maker left no verified address. The reason will be recorded but nobody will receive it.', 'warn'));
+      // Naming the cause rather than only the effect. "No verified address" reads
+      // like a fault; "submitted with the operator token" says which of the two
+      // sign-in routes was taken, which is the thing that decides it.
+      box.appendChild(text('p', item.maker === 'operator'
+        ? 'Submitted with the operator token, which carries no address. The reason will be recorded, but there is nobody to send it to.'
+        : 'This maker signed in with Google but the address was not verified, so none was kept. The reason will be recorded but nobody will receive it.',
+        'warn'));
     }
 
     var confirm = document.createElement('button');
@@ -147,6 +198,7 @@ export function page(googleClientId: string): string {
     confirm.className = 'deny';
     box.appendChild(confirm);
     el.appendChild(box);
+    el.appendChild(pre);
 
     denyToggle.addEventListener('click', function () {
       box.classList.toggle('open');
@@ -160,9 +212,12 @@ export function page(googleClientId: string): string {
     approve.addEventListener('click', function () {
       busy(true);
       say('Publishing ' + (item.title || item.id) + '…');
-      api('/approve', { method: 'POST', body: JSON.stringify({ id: item.id }) })
+      api('/approve', { method: 'POST', body: JSON.stringify({ id: item.id, note: note.value }) })
         .then(function (body) {
-          say('Published ' + (body.published && body.published.title || item.id) + '.');
+          var where = (body.announced || []).length
+            ? ' Catalogue and record updating: ' + body.announced.join(', ') + '.'
+            : ' Nothing was dispatched — it is live but not yet listed or recorded.';
+          say('Published ' + (body.published && body.published.title || item.id) + '.' + where);
           load();
         })
         .catch(function (e) { busy(false); say(e.message, true); });
@@ -191,6 +246,9 @@ export function page(googleClientId: string): string {
       whoEl.textContent = 'Signed in as ' + body.approver.name;
       signinEl.style.display = 'none';
       queueEl.replaceChildren();
+      // Cleared once the answer is in. Leaving "Checking the approver list…" up
+      // after the list has plainly loaded reads as a step still running.
+      say('');
       if (!body.queue.length) {
         queueEl.appendChild(text('p', 'Nothing is waiting. The queue is empty.', 'empty'));
         return;

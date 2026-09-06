@@ -40,6 +40,37 @@ variable "hosted_zone_id" {
   default     = "Z08048752S76S8K5PMR7I"
 }
 
+variable "github_dispatch_token" {
+  description = <<-TEXT
+    Fine-grained PAT whose only permission is Contents: write on the two
+    repositories — which is what GitHub requires for repository_dispatch, since
+    the dispatch endpoint sits under a repository's contents permission.
+
+    It reaches the function as an environment variable, readable by anyone who can
+    read the function's configuration or the Terraform state. Both are private and
+    the state bucket is encrypted, but SSM SecureString keeps it out of both and is
+    the upgrade worth making. Supplied in terraform.tfvars, which is gitignored.
+
+    Empty disables dispatching. Publishing still works; the catalogue and the
+    record simply do not update themselves.
+  TEXT
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "github_site_repo" {
+  description = "owner/repo holding the catalogue index. Dispatched on publish."
+  type        = string
+  default     = "McFunshine/mimawsi"
+}
+
+variable "github_record_repo" {
+  description = "owner/repo holding the public record of published tools."
+  type        = string
+  default     = "McFunshine/mimawsi_external"
+}
+
 variable "admin_role_name" {
   description = "Execution role for the approval Lambda. Created by hand, like the other — the Terraform identity holds no iam:CreateRole."
   type        = string
@@ -79,6 +110,15 @@ resource "aws_lambda_function" "admin" {
       MIMAWSI_SITE_BUCKET         = var.site_bucket
       MIMAWSI_RUNNER_DISTRIBUTION = aws_cloudfront_distribution.runner.id
       GOOGLE_CLIENT_ID            = var.google_client_id
+
+      # Dispatch-only. Fires a workflow in each repository and can do nothing
+      # else — the catalogue index and the public record are both git operations,
+      # and each repository's own workflow makes them with the token GitHub gives
+      # it. Empty disables the dispatch: the tool still publishes, it is just
+      # neither listed nor recorded until somebody catches it up.
+      GITHUB_DISPATCH_TOKEN       = var.github_dispatch_token
+      GITHUB_SITE_REPO            = var.github_site_repo
+      GITHUB_RECORD_REPO          = var.github_record_repo
 
       # No MIMAWSI_OPERATOR_TOKEN, deliberately. This function publishes to the
       # live site; a long-lived bearer string in an environment variable is not

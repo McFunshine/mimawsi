@@ -12,6 +12,7 @@
  * guard that. Approving is Google-only, checked against the allowlist.
  */
 import { ApproverList, S3Storage, emailNotifier, googleIdentity } from '@mimawsi/adapters-aws';
+import { githubDispatcher } from '@mimawsi/adapters-github';
 import type { Maker } from '@mimawsi/domain';
 import { route } from './admin.ts';
 import type { AdminDeps, AdminEvent, AdminResponse } from './admin.ts';
@@ -38,6 +39,16 @@ const deps: AdminDeps = {
         return undefined;
       }
     },
+  }),
+  // Dispatch-only, to both repositories. The token can trigger a workflow and
+  // nothing else: each repository's workflow then edits its own contents with the
+  // token GitHub hands it, so nothing here holds write access to either.
+  dispatcher: githubDispatcher({
+    token: process.env.GITHUB_DISPATCH_TOKEN ?? '',
+    targets: [
+      { repo: process.env.GITHUB_SITE_REPO ?? '', eventType: 'tool-published' },
+      { repo: process.env.GITHUB_RECORD_REPO ?? '', eventType: 'tool-published' },
+    ].filter((t) => t.repo !== ''),
   }),
   targets: {
     siteBucket: process.env.MIMAWSI_SITE_BUCKET,

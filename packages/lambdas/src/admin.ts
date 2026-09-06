@@ -16,6 +16,8 @@ import type { NotifierPort, ReviewStorage, StoragePort } from '@mimawsi/ports';
 import { NotFoundError } from '@mimawsi/ports';
 import type { PublishTargets } from '@mimawsi/publisher';
 import { publishSubmission } from '@mimawsi/publisher';
+import type { Dispatcher } from '@mimawsi/adapters-github';
+import { slugFor } from '@mimawsi/adapters-github';
 import { page } from './admin-page.ts';
 
 export interface AdminEvent {
@@ -40,6 +42,8 @@ export interface AdminDeps {
   /** Server-side allowlist check. Fails closed on every error. */
   readonly allows: (maker: Maker | null) => Promise<boolean>;
   readonly notifier: NotifierPort;
+  /** Tells the catalogue and the public record that a tool was published. */
+  readonly dispatcher: Dispatcher;
   readonly targets: PublishTargets;
   /** Shipped to the browser so the page can start Google sign-in. Public by design. */
   readonly googleClientId: string;
@@ -119,7 +123,10 @@ export async function route(deps: AdminDeps, event: AdminEvent): Promise<AdminRe
         'content-security-policy': [
           "default-src 'none'",
           "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com",
-          "style-src 'unsafe-inline'",
+          // Google's button pulls its own stylesheet from accounts.google.com.
+          // Without it here the button renders unstyled and the console fills with
+          // a policy violation that looks like a sign-in fault and is not one.
+          "style-src 'unsafe-inline' https://accounts.google.com",
           "connect-src 'self' https://accounts.google.com",
           'frame-src https://accounts.google.com',
           "img-src data: https://*.googleusercontent.com",
@@ -128,6 +135,11 @@ export async function route(deps: AdminDeps, event: AdminEvent): Promise<AdminRe
         ].join('; '),
         'referrer-policy': 'no-referrer',
         'x-content-type-options': 'nosniff',
+        // Google signs in through a popup that talks back with postMessage. Plain
+        // `same-origin` severs that channel — the popup opens, the person signs in,
+        // and nothing arrives back. `allow-popups` keeps the isolation for
+        // everything else while letting this one exchange through.
+        'cross-origin-opener-policy': 'same-origin-allow-popups',
       },
       body: page(deps.googleClientId),
     };
@@ -186,7 +198,8 @@ export async function route(deps: AdminDeps, event: AdminEvent): Promise<AdminRe
     }
 
     if (path === '/approve' && method === 'POST') {
-      const id = asId(bodyOf(event).id);
+      const body = bodyOf(event);
+      const id = asId(body.id);
       if (!id) {
         return json(400, { error: 'id is required' });
       }
@@ -198,12 +211,32 @@ export async function route(deps: AdminDeps, event: AdminEvent): Promise<AdminRe
         return json(409, { error: `already ${submission.state}`, state: submission.state });
       }
 
+      const note = typeof body.note === 'string' ? body.note.trim() : '';
+
       await deps.storage.setState(id, 'approved');
       // The same publishSubmission the CLI calls. Not a second implementation —
       // that divergence is what put a tool in the catalogue whose file was never
       // uploaded, and it is why the publisher was extracted.
       const { tool } = await publishSubmission(deps, id, deps.targets);
-      return json(200, { published: { id: tool.id.value, title: tool.metadata.title } });
+
+      // After the bytes are live, and never allowed to fail the publish. The tool
+      // is reachable at this point; reporting the approval as failed because a
+      // webhook did not land would invite a second approval of something already
+      // published. What it costs is that the catalogue and the record can lag,
+      // which is visible and fixable, rather than wrong and silent.
+      const announced = await deps.dispatcher.announce({
+        tool,
+        slug: slugFor(tool),
+        note,
+        approvedBy: maker.displayName,
+      });
+
+      return json(200, {
+        published: { id: tool.id.value, title: tool.metadata.title },
+        // Told to the approver rather than logged, because if this is empty the
+        // tool is live but unlisted, and they are the only person who will know.
+        announced,
+      });
     }
 
     if (path === '/deny' && method === 'POST') {

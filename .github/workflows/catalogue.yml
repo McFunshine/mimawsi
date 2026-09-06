@@ -1,0 +1,67 @@
+# Adding a published tool to the catalogue index.
+#
+# The site is a static build and lists tools from `packages/site/src/data/published.json`,
+# a committed file. Publishing writes bytes to S3, which makes a tool reachable at
+# its URL — but until this file changes, the catalogue does not mention it. The
+# review CLI edits it on the operator's laptop and `publish.mjs` commits it; the
+# approval endpoint cannot commit, so it dispatches here instead.
+#
+# Committing to main is what makes this work: the push triggers ci.yml, which
+# already recognises a published.json-only change and skips the browser suite for
+# it, so the deploy is about twenty-five seconds.
+name: Add to the catalogue
+
+on:
+  repository_dispatch:
+    types: [tool-published]
+
+permissions:
+  contents: write
+
+concurrency:
+  # Two approvals in quick succession would otherwise both read the file, both add
+  # one entry, and the second push would be rejected or would drop the first.
+  group: catalogue
+  cancel-in-progress: false
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Add the entry, if it is not already there
+        env:
+          PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+        run: |
+          echo "$PAYLOAD" > /tmp/published.json
+          node scripts/add-to-catalogue.mjs /tmp/published.json
+
+      - name: Commit, if anything changed
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Already in the catalogue; nothing to commit."
+            exit 0
+          fi
+
+          # Only ever this one file. If the script touched anything else it has a
+          # bug, and committing it under a message about publishing a tool is how
+          # unrelated changes reach production described as something else — the
+          # same guard publish.mjs applies on the operator's laptop.
+          changed=$(git status --porcelain | sed 's/^...//')
+          if [ "$changed" != "packages/site/src/data/published.json" ]; then
+            echo "::error::unexpected changes:"; echo "$changed"; exit 1
+          fi
+
+          title=$(node -e 'console.log(require("/tmp/published.json").title)')
+          git config user.name  "mimawsi"
+          git config user.email "no-reply@mimawsi.com"
+          git add packages/site/src/data/published.json
+          git commit -m "Publish ${title}"
+          git push origin main

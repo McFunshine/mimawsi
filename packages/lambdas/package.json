@@ -12,7 +12,8 @@
     "@mimawsi/domain": "*",
     "@mimawsi/ports": "*",
     "@mimawsi/adapters-aws": "*",
-    "@mimawsi/publisher": "*"
+    "@mimawsi/publisher": "*",
+    "@mimawsi/adapters-github": "*"
   },
   "devDependencies": {
     "esbuild": "^0.24.0"
