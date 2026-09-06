@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { LocalDirectoryStorage } from '@mimawsi/adapters-fake';
+import { LocalDirectoryStorage, tempRoot } from '@mimawsi/adapters-fake';
 import type { Maker } from '@mimawsi/domain';
 import type { NotifiableEvent } from '@mimawsi/ports';
 import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { route } from './admin.ts';
 import type { AdminDeps, AdminEvent } from './admin.ts';
@@ -17,7 +16,11 @@ const APPROVER: Maker = { id: { value: 'sub-approver' }, displayName: 'Ada' };
 const STRANGER: Maker = { id: { value: 'sub-stranger' }, displayName: 'Mallory' };
 
 async function storageWith(): Promise<LocalDirectoryStorage> {
-  return new LocalDirectoryStorage(await mkdtemp(join(tmpdir(), 'mimawsi-admin-')));
+  // tempRoot, not tmpdir. TMPDIR is set to the repository root on at least one
+  // machine here, so os.tmpdir() returns the checkout and every store this makes
+  // lands beside the source — which is what tempRoot exists to prevent, and what
+  // this test did until it was noticed.
+  return new LocalDirectoryStorage(await mkdtemp(join(tempRoot(), 'mimawsi-admin-')));
 }
 
 const bytes = (s: string) => new TextEncoder().encode(s);

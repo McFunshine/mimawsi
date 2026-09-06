@@ -49,10 +49,15 @@ backend.hcl
 !backend.hcl.example
 
 # Test stores, if a run ever lands them here rather than in TMPDIR
-# Test scratch, when TMPDIR points at the repository root. Narrow on purpose:
-# `/mimawsi-*/` also hid any real directory whose name started that way, and this
-# project has several.
-/mimawsi-maker-*/
+# Test scratch, for when TMPDIR points at the repository root — see
+# packages/adapters-fake/src/temp-root.ts, which exists because two environments
+# have now got TMPDIR wrong in different ways.
+#
+# Deliberately broad, and only at the root. Every root-level mimawsi-* directory
+# is scratch; the real ones live under packages/. Narrowing this to the prefixes
+# known on one afternoon let mimawsi-admin-* through, and 84 files of test scratch
+# reached a commit before anyone noticed.
+/mimawsi-*/
 
 # Playwright compiles specs into this next to the runner; 18 of them were
 # committed to a public repo by a careless `git add -A`.

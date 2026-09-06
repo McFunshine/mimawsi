@@ -72,3 +72,7 @@ export function fakePorts(storageRoot: string): Ports {
     notifier: new RecordingNotifier(),
   };
 }
+
+// Exported so every test that needs scratch space uses the one guard, rather
+// than reaching for os.tmpdir() and discovering TMPDIR is the checkout.
+export { tempRoot } from './temp-root.ts';
