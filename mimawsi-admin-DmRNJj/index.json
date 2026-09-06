@@ -1,0 +1,22 @@
+{
+  "submissions": [
+    {
+      "id": {
+        "value": "241d3f9d-9d84-42d5-8ede-9385f3547fc8"
+      },
+      "maker": {
+        "value": "maker-1"
+      },
+      "metadata": {
+        "title": "One",
+        "description": "first",
+        "tags": []
+      },
+      "state": "pending",
+      "sha256": "52c123d327f66e17c132f51c832d69c12e1041a433586d8ce834a73b0062b4e7",
+      "sizeBytes": 12,
+      "makerEmail": "maker@example.com"
+    }
+  ],
+  "published": []
+}

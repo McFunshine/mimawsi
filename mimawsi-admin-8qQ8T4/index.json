@@ -1,0 +1,23 @@
+{
+  "submissions": [
+    {
+      "id": {
+        "value": "764837f4-50f4-4035-8cac-4a138f31d5b7"
+      },
+      "maker": {
+        "value": "maker-1"
+      },
+      "metadata": {
+        "title": "A",
+        "description": "d",
+        "tags": []
+      },
+      "state": "rejected",
+      "sha256": "e7fbb6fbbf4ce294913eb62b53ff03a7546649cfdc0d824d9e3a2b4541502f7f",
+      "sizeBytes": 11,
+      "submittedAt": "2026-09-06T14:18:59.974Z",
+      "makerEmail": "maker@example.com"
+    }
+  ],
+  "published": []
+}

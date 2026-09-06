@@ -1,0 +1,22 @@
+{
+  "submissions": [
+    {
+      "id": {
+        "value": "48b348ba-3959-44cb-b87b-2b6cf68897f5"
+      },
+      "maker": {
+        "value": "maker-1"
+      },
+      "metadata": {
+        "title": "A",
+        "description": "d",
+        "tags": []
+      },
+      "state": "rejected",
+      "sha256": "e7fbb6fbbf4ce294913eb62b53ff03a7546649cfdc0d824d9e3a2b4541502f7f",
+      "sizeBytes": 11,
+      "submittedAt": "2026-09-06T14:22:55.221Z"
+    }
+  ],
+  "published": []
+}

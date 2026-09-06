@@ -1,5 +1,7 @@
 import { execFile } from 'node:child_process';
 import { rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
@@ -27,6 +29,54 @@ const run = promisify(execFile);
  * Retired by task-3.5, when the catalogue is generated from storage and resetting
  * is a fixture's job rather than a directory deletion.
  */
+/**
+ * The maker directories the journey creates, wherever they landed.
+ *
+ * The journey writes its file to `mkdtemp(join(tmpdir(), 'mimawsi-maker-'))`,
+ * which is correct — but on this machine `TMPDIR` is set to the repository root,
+ * so os.tmpdir() returns the project and every one of them appears beside the
+ * source. Six had accumulated since 22 August, along with Playwright's transform
+ * cache and Node's compile cache.
+ *
+ * The environment is the real fault and is not this file's to fix. Clearing up
+ * after itself is the test's job either way: a temp directory left behind is
+ * litter in /var/folders too, it is merely invisible there.
+ *
+ * Guarded to the exact prefix and to directories containing nothing but the
+ * journey's own file, because this deletes things and `TMPDIR` being wrong is
+ * precisely the circumstance in which a broad sweep would delete the wrong ones.
+ */
+async function clearMakerDirectories(root: string): Promise<void> {
+  const { readdir, stat } = await import('node:fs/promises');
+  for (const base of new Set([root, tmpdir()])) {
+    let entries: string[];
+    try {
+      entries = await readdir(base);
+    } catch {
+      continue;
+    }
+    for (const name of entries) {
+      if (!name.startsWith('mimawsi-maker-')) {
+        continue;
+      }
+      const dir = join(base, name);
+      try {
+        if (!(await stat(dir)).isDirectory()) {
+          continue;
+        }
+        const contents = await readdir(dir);
+        // Only ever a directory holding the one file the journey wrote.
+        if (contents.length === 0 || (contents.length === 1 && contents[0] === 'shouty.html')) {
+          await rm(dir, { recursive: true, force: true });
+        }
+      } catch {
+        // A directory that vanished under us, or one we may not read. Neither is
+        // worth failing a test run over.
+      }
+    }
+  }
+}
+
 export async function resetLocalState(): Promise<void> {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const index = 'packages/site/src/data/published.json';
@@ -44,4 +94,6 @@ export async function resetLocalState(): Promise<void> {
     recursive: true,
     force: true,
   });
+
+  await clearMakerDirectories(root);
 }

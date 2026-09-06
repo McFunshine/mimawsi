@@ -49,7 +49,10 @@ backend.hcl
 !backend.hcl.example
 
 # Test stores, if a run ever lands them here rather than in TMPDIR
-/mimawsi-*/
+# Test scratch, when TMPDIR points at the repository root. Narrow on purpose:
+# `/mimawsi-*/` also hid any real directory whose name started that way, and this
+# project has several.
+/mimawsi-maker-*/
 
 # Playwright compiles specs into this next to the runner; 18 of them were
 # committed to a public repo by a careless `git add -A`.

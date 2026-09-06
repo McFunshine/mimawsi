@@ -1,0 +1,21 @@
+{
+  "submissions": [
+    {
+      "id": {
+        "value": "5dd2adc0-13b6-4c0e-b152-dd043a1e965b"
+      },
+      "maker": {
+        "value": "maker-1"
+      },
+      "metadata": {
+        "title": "A",
+        "description": "d",
+        "tags": []
+      },
+      "state": "pending",
+      "sha256": "5c140d35dcb46a622e2cedf5ef5cc3638cdffd1c118c9331f8c84669f0b74783",
+      "sizeBytes": 25
+    }
+  ],
+  "published": []
+}
