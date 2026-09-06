@@ -31,6 +31,20 @@ terraform {
 
 provider "aws" {
   region = var.region
+
+  # Every resource Terraform manages gets these, including ones added later by
+  # someone who never reads this file. That is the point: this account holds
+  # three projects, and per-project cost reporting depends on a tag being present
+  # on everything — which is exactly the kind of rule that decays when it relies
+  # on remembering.
+  #
+  # `project` must also be activated as a cost allocation tag in Billing before
+  # any of it reaches a cost report. Tagging alone changes no bill.
+  default_tags {
+    tags = {
+      project = "mimawsi"
+    }
+  }
 }
 
 # CloudFront certificates and some global resources are only addressable in
@@ -38,4 +52,18 @@ provider "aws" {
 provider "aws" {
   alias  = "us_east_1"
   region = "us-east-1"
+
+  # Every resource Terraform manages gets these, including ones added later by
+  # someone who never reads this file. That is the point: this account holds
+  # three projects, and per-project cost reporting depends on a tag being present
+  # on everything — which is exactly the kind of rule that decays when it relies
+  # on remembering.
+  #
+  # `project` must also be activated as a cost allocation tag in Billing before
+  # any of it reaches a cost report. Tagging alone changes no bill.
+  default_tags {
+    tags = {
+      project = "mimawsi"
+    }
+  }
 }

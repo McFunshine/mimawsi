@@ -8,6 +8,14 @@ resource "aws_iam_openid_connect_provider" "github" {
   tags_all        = {}
   thumbprint_list = ["ab9d0263244dd0326eb67015705a667e79cfe998"]
   url             = "https://token.actions.githubusercontent.com"
+
+  # Not tagged. The provider tags everything by default so per-project cost
+  # reporting cannot be forgotten, but IAM resources accrue no cost to report and
+  # the deploy identity holds no iam:TagRole — so without this, every apply fails
+  # trying to tag two things whose tags would never appear on a bill.
+  lifecycle {
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 # adopted from an existing resource
@@ -22,4 +30,12 @@ resource "aws_iam_role" "github_deploy" {
   permissions_boundary  = null
   tags                  = {}
   tags_all              = {}
+
+  # Not tagged. The provider tags everything by default so per-project cost
+  # reporting cannot be forgotten, but IAM resources accrue no cost to report and
+  # the deploy identity holds no iam:TagRole — so without this, every apply fails
+  # trying to tag two things whose tags would never appear on a bill.
+  lifecycle {
+    ignore_changes = [tags, tags_all]
+  }
 }

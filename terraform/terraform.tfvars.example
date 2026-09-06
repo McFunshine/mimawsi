@@ -10,3 +10,6 @@ google_client_id = "000000000000-example.apps.googleusercontent.com"
 
 # Grok API Key
 grok_api_key = "xai-..."
+
+# Github PAT
+github_dispatch_token = "github_pat_..."
