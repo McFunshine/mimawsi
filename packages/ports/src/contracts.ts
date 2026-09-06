@@ -95,6 +95,28 @@ export function describeStoragePort(name: string, create: () => Promise<StorageP
       expect(await storage.listSubmissions('pending')).toEqual([]);
     });
 
+    it('counts a maker\'s recent submissions, and only that maker\'s', async () => {
+      const storage = await create();
+      await storage.submit({ bytes: bytesOf('<h1>a</h1>'), metadata: meta('A'), maker });
+      await storage.submit({ bytes: bytesOf('<h1>b</h1>'), metadata: meta('B'), maker });
+      await storage.submit({ bytes: bytesOf('<h1>c</h1>'), metadata: meta('C'), maker: { value: 'someone-else' } });
+
+      const anHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      await expect(storage.countSince(maker, anHourAgo)).resolves.toBe(2);
+      await expect(storage.countSince({ value: 'someone-else' }, anHourAgo)).resolves.toBe(1);
+      await expect(storage.countSince({ value: 'nobody' }, anHourAgo)).resolves.toBe(0);
+    });
+
+    it('does not count submissions from before the window', async () => {
+      const storage = await create();
+      await storage.submit({ bytes: bytesOf('<h1>a</h1>'), metadata: meta('A'), maker });
+
+      // The whole point of the window. A store that counted everything ever sent
+      // would lock an account out permanently on its twentieth submission.
+      const inAnHour = new Date(Date.now() + 60 * 60 * 1000);
+      await expect(storage.countSince(maker, inAnHour)).resolves.toBe(0);
+    });
+
     it('reports a missing submission rather than returning nothing', async () => {
       const storage = await create();
       await expect(storage.getSubmission({ value: 'nope' })).rejects.toThrow(NotFoundError);

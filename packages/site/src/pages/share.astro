@@ -54,6 +54,20 @@ const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID ?? null;
       <label for="description">Description</label>
       <textarea id="description" name="description" rows="3" required></textarea>
     </p>
+    <p class="field terms">
+      <label for="terms">
+        <input id="terms" type="checkbox" required>
+        This tool is mine to give, and I agree it is published under the
+        <a href="https://github.com/McFunshine/mimawsi_external/blob/main/LICENSE" target="_blank" rel="noopener">MIT licence</a>.
+      </label>
+    </p>
+    <p class="hint terms-hint">
+      You keep the copyright. What you are granting is permission for anyone to
+      use, change and share it &mdash; which is the point of publishing it here,
+      because a tool nobody may reuse is only half public. Do not upload anything
+      you did not write, or anything carrying a licence that would not allow this.
+    </p>
+
     <p class="submit">
       <button id="submit" type="submit">Submit</button>
     </p>
@@ -337,6 +351,9 @@ const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID ?? null;
     width: 100%; padding: .6rem; font: inherit; background: transparent;
     color: var(--fg); border: 1px solid var(--line); border-radius: 8px;
   }
+  .terms label { display: flex; gap: .5rem; align-items: flex-start; font-weight: normal; cursor: pointer; }
+  .terms input { margin-top: .3rem; flex: none; }
+  .terms-hint { margin-top: -.35rem; }
   .submit button, #signin {
     font: inherit; font-weight: 600; padding: .55rem 1.2rem; cursor: pointer;
     background: transparent; color: var(--accent);

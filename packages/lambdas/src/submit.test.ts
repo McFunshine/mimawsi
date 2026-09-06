@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MAX_DESCRIPTION_CHARS, MAX_TITLE_CHARS } from '@mimawsi/domain';
 import type { Maker } from '@mimawsi/domain';
+import { DAILY_SUBMISSION_LIMIT, SUBMISSION_WINDOW_MS } from '@mimawsi/domain';
 import { submit } from './submit.ts';
 import type { SubmitDeps } from './submit.ts';
 
@@ -12,6 +13,7 @@ function deps(): SubmitDeps & { stored: unknown[] } {
     stored,
     identity: { current: async () => MAKER },
     storage: {
+      countSince: async () => 0,
       submit: async (input) => {
         stored.push(input);
         return {
@@ -87,3 +89,64 @@ describe('submit', () => {
     expect((await submit(d, { title: 'T', description: 'd', html: '<p>x</p>' })).status).toBe(401);
   });
 });
+
+describe('the daily limit', () => {
+  const ports = (already: number) => ({
+    identity: { current: async () => ({ id: { value: 'maker-1' }, displayName: 'A' }) },
+    storage: {
+      countSince: vi.fn(async () => already),
+      submit: vi.fn(async () => {
+        throw new Error('storage.submit must not be reached when over the limit');
+      }),
+    },
+  });
+
+  const body = { title: 'A tool', description: '', html: '<h1>hi</h1>' };
+
+  it('refuses the twenty-first submission in a day', async () => {
+    const p = ports(DAILY_SUBMISSION_LIMIT);
+    const result = await submit(p as never, body);
+
+    expect(result.status).toBe(429);
+    // Refused before anything is hashed or written, so a flood costs a read rather
+    // than a bucket write per attempt.
+    expect(p.storage.submit).not.toHaveBeenCalled();
+  });
+
+  it('allows the twentieth', async () => {
+    const p = ports(DAILY_SUBMISSION_LIMIT - 1);
+    p.storage.submit = vi.fn(async () => ({
+      id: { value: 'x' }, maker: { value: 'maker-1' },
+      metadata: { title: 'A tool', description: '', tags: [] },
+      state: 'pending' as const, sha256: 'h', sizeBytes: 1,
+    })) as never;
+
+    const result = await submit(p as never, body);
+    expect(result.status).toBe(201);
+  });
+
+  it('counts over a rolling window, not since midnight', async () => {
+    const p = ports(0);
+    p.storage.submit = vi.fn(async () => ({
+      id: { value: 'x' }, maker: { value: 'maker-1' },
+      metadata: { title: 'A tool', description: '', tags: [] },
+      state: 'pending' as const, sha256: 'h', sizeBytes: 1,
+    })) as never;
+
+    const before = Date.now();
+    await submit(p as never, body);
+
+    const since = (p.storage.countSince.mock.calls[0] as unknown as [unknown, Date])[1];
+    const window = before - since.getTime();
+    // A calendar-day reset would let an account send twice the limit in the few
+    // minutes either side of midnight.
+    expect(window).toBeGreaterThanOrEqual(SUBMISSION_WINDOW_MS - 5000);
+    expect(window).toBeLessThanOrEqual(SUBMISSION_WINDOW_MS + 5000);
+  });
+
+  it('tells the caller the limit and when to come back', async () => {
+    const result = await submit(ports(DAILY_SUBMISSION_LIMIT) as never, body);
+    expect(result.body).toMatchObject({ limit: DAILY_SUBMISSION_LIMIT, retryAfterHours: 24 });
+  });
+});
+

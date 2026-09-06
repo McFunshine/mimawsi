@@ -1,4 +1,10 @@
-import { MAX_DESCRIPTION_CHARS, MAX_TITLE_CHARS, MAX_TOOL_BYTES } from '@mimawsi/domain';
+import {
+  DAILY_SUBMISSION_LIMIT,
+  MAX_DESCRIPTION_CHARS,
+  MAX_TITLE_CHARS,
+  MAX_TOOL_BYTES,
+  SUBMISSION_WINDOW_MS,
+} from '@mimawsi/domain';
 import { DuplicateFileError } from '@mimawsi/ports';
 import type { IdentityPort, StoragePort } from '@mimawsi/ports';
 
@@ -11,6 +17,7 @@ export interface SubmitRequest {
 export type SubmitResult =
   | { status: 400; body: { error: string } }
   | { status: 401; body: { error: string } }
+  | { status: 429; body: { error: string; limit: number; retryAfterHours: number } }
   | { status: 413; body: { error: string; maxBytes: number } }
   | { status: 409; body: { error: string; existing: string } }
   | { status: 201; body: { id: string; state: string } };
@@ -22,7 +29,7 @@ export type SubmitResult =
  */
 export interface SubmitDeps {
   readonly identity: Pick<IdentityPort, 'current'>;
-  readonly storage: Pick<StoragePort, 'submit'>;
+  readonly storage: Pick<StoragePort, 'submit' | 'countSince'>;
 }
 
 const text = (value: unknown): string | null =>
@@ -40,6 +47,27 @@ export async function submit(ports: SubmitDeps, request: SubmitRequest): Promise
     // before authentication (AC-19) — refusing *after* storing would satisfy a
     // status-code test and still break the criterion.
     return { status: 401, body: { error: 'authentication required' } };
+  }
+
+  // Before the file is read, hashed or stored. An account over its allowance is
+  // refused at the same point an unauthenticated one is, so a flood costs the same
+  // as a refusal rather than a bucket write per attempt.
+  //
+  // Rolling, not per calendar day: a midnight reset would let an account send
+  // twice the limit either side of it.
+  const since = new Date(Date.now() - SUBMISSION_WINDOW_MS);
+  const already = await ports.storage.countSince(maker.id, since);
+  if (already >= DAILY_SUBMISSION_LIMIT) {
+    return {
+      status: 429,
+      body: {
+        error: `that is ${DAILY_SUBMISSION_LIMIT} submissions in 24 hours, which is the limit`,
+        limit: DAILY_SUBMISSION_LIMIT,
+        // So a caller knows whether to come back in a minute or tomorrow, rather
+        // than retrying blindly against a wall.
+        retryAfterHours: 24,
+      },
+    };
   }
 
   // The fields are checked before anything is encoded or stored. A request with no

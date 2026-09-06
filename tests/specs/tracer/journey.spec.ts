@@ -97,6 +97,14 @@ test('TC-T01: a tool travels the whole path — browse, run, download, share, ap
   // ---- 5. Submit it ----------------------------------------------------
   await page.getByLabel('Title').fill('Shouty Text');
   await page.getByLabel('Description').fill('Turns your text into shouting');
+
+  // Consent is part of submitting, not a step beside it. The form will not submit
+  // without it, and a journey that ticked nothing would be testing a path a maker
+  // cannot take.
+  const terms = page.getByRole('checkbox', { name: /MIT licence/ });
+  await expect(terms).not.toBeChecked();
+  await terms.check();
+
   await page.getByRole('button', { name: 'Submit' }).click();
 
   // Authentication is prompted at submit, never before — bytes must not reach

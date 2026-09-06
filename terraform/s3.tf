@@ -38,8 +38,45 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "pending" {
 # job to forget about. It was written when submissions were to be DynamoDB rows
 # with a TTL, and paired with that TTL so a record never outlived its bytes; the
 # store is now a single bucket, so the pairing no longer applies. See the rule.
+# Versioned, so an overwrite of index.json is recoverable.
+#
+# This bucket holds every submission and the index describing them, and until now
+# a bad write to that index was unrecoverable — which is why editing it meant
+# taking two backups by hand first. A control that depends on remembering to take
+# a backup is not a control.
+#
+# The admin bucket has had this since it was made, for the allowlist. The same
+# argument applies at least as strongly here: the allowlist can be retyped from
+# memory, and the record of who submitted what cannot.
+resource "aws_s3_bucket_versioning" "pending" {
+  bucket = aws_s3_bucket.pending.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "pending" {
   bucket = aws_s3_bucket.pending.id
+
+  # Versioning is not free storage. Without this, every overwrite of index.json is
+  # kept forever and the bucket grows without bound — the same unbounded-cost shape
+  # the log groups had. Ninety days is far longer than any mistake takes to notice.
+  #
+  # Deliberately unfiltered: it applies to noncurrent versions of everything,
+  # including the published bytes. Unlike the expiry rules below, which delete live
+  # objects and so must be scoped tightly, this can only ever remove superseded
+  # copies — the current version of every object is untouched by it.
+  rule {
+    id     = "expire-superseded-versions"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = 90
+    }
+  }
 
   # Scoped to the uploaded bytes, and to nothing else. An unscoped filter matches
   # every object in the bucket, which now includes index.json — the record of every

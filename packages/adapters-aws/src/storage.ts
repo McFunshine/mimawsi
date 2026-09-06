@@ -103,6 +103,7 @@ export class S3Storage implements StoragePort {
         state: 'pending',
         sha256: hash,
         sizeBytes: input.bytes.byteLength,
+        submittedAt: new Date().toISOString(),
         // Omitted rather than stored empty, so "we have no address" and "the
         // address is the empty string" cannot be confused by anything reading this
         // back — including the rejection path, which must not try to send to ''.
@@ -117,6 +118,24 @@ export class S3Storage implements StoragePort {
       await this.putBytes(`pending/${submission.id.value}.html`, input.bytes);
       return { next: { ...state, submissions: [...state.submissions, submission] }, result: submission };
     });
+  }
+
+
+  async countSince(maker: UserId, since: Date): Promise<number> {
+    const cutoff = since.getTime();
+    return (await this.snapshot()).state.submissions.filter((s) => {
+      if (s.maker.value !== maker.value) {
+        return false;
+      }
+      // An absent timestamp predates the field, so it is older than any window a
+      // caller can ask about. Treating it as now would put a record from last year
+      // inside today's allowance.
+      if (typeof s.submittedAt !== 'string') {
+        return false;
+      }
+      const at = Date.parse(s.submittedAt);
+      return Number.isFinite(at) && at >= cutoff;
+    }).length;
   }
 
   async getSubmission(id: SubmissionId): Promise<Submission> {

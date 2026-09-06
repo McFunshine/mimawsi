@@ -55,6 +55,15 @@ export interface SubmissionWriter {
      */
     makerEmail?: string | undefined;
   }): Promise<Submission>;
+
+  /**
+   * How many submissions this account has made since `since`.
+   *
+   * A count rather than a list: the caller needs a number, and handing it every
+   * record a maker ever sent so it can measure the length would make the cost of
+   * the check grow with the busiest account on the site.
+   */
+  countSince(maker: UserId, since: Date): Promise<number>;
 }
 
 /** What the review surface needs: the queue, and the bytes it is judging. */

@@ -58,6 +58,13 @@ export interface Submission {
   readonly makerEmail?: string;
   /** Free text for a human reading the store. Never shown to the maker. */
   readonly makerNote?: string;
+  /**
+   * When this arrived, ISO-8601 in UTC. Optional only because submissions made
+   * before this field existed have none — anything counting them must treat an
+   * absent value as "too old to count" rather than as now, or a record from last
+   * year would sit inside today's allowance.
+   */
+  readonly submittedAt?: string;
 }
 
 /** A published tool, as the catalogue sees it. */
@@ -82,8 +89,17 @@ export interface ScanResult {
 /** 25 MiB, exactly. */
 export const MAX_TOOL_BYTES = 26_214_400;
 
-/** Accepted submissions per account per rolling 24 hours. */
-export const DAILY_SUBMISSION_LIMIT = 5;
+/**
+ * Accepted submissions per account per rolling 24 hours.
+ *
+ * Rolling rather than per calendar day: a midnight reset lets an account send
+ * twice the limit in a few minutes either side of it, which is exactly when
+ * somebody testing the edges will try.
+ */
+export const DAILY_SUBMISSION_LIMIT = 20;
+
+/** The window that limit is measured over. */
+export const SUBMISSION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Metadata bounds. No AC fixes these numbers — they are chosen, and they exist

@@ -93,6 +93,7 @@ export class LocalDirectoryStorage implements StoragePort {
         state: 'pending',
         sha256: hash,
         sizeBytes: input.bytes.byteLength,
+        submittedAt: new Date().toISOString(),
         ...(input.makerEmail === undefined || input.makerEmail === ''
           ? {}
           : { makerEmail: input.makerEmail }),
@@ -103,6 +104,24 @@ export class LocalDirectoryStorage implements StoragePort {
       await this.write(state);
       return submission;
     });
+  }
+
+
+  async countSince(maker: UserId, since: Date): Promise<number> {
+    const cutoff = since.getTime();
+    return (await this.read()).submissions.filter((s) => {
+      if (s.maker.value !== maker.value) {
+        return false;
+      }
+      // An absent timestamp predates the field, so it is older than any window a
+      // caller can ask about. Treating it as now would put a record from last year
+      // inside today's allowance.
+      if (typeof s.submittedAt !== 'string') {
+        return false;
+      }
+      const at = Date.parse(s.submittedAt);
+      return Number.isFinite(at) && at >= cutoff;
+    }).length;
   }
 
   async getSubmission(id: SubmissionId): Promise<Submission> {

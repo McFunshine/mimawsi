@@ -21,7 +21,7 @@ const storage = {
 };
 
 const deps = (): RouteDeps => ({
-  storage: { submit: storage.submit.bind({ submitted: [] }) },
+  storage: { submit: storage.submit.bind({ submitted: [] }), countSince: async () => 0 },
   operatorToken: TOKEN,
   googleClientId: '',
   configured: true,
@@ -114,7 +114,10 @@ describe('route', () => {
   it('never leaks an internal error message to the caller', async () => {
     const exploding: RouteDeps = {
       ...deps(),
-      storage: { submit: async () => { throw new Error('bucket mimawsi-pending-123 denied'); } },
+      storage: {
+        submit: async () => { throw new Error('bucket mimawsi-pending-123 denied'); },
+        countSince: async () => 0,
+      },
     };
     const response = await route(exploding, event({ body: submitBody() }));
     expect(response.statusCode).toBe(500);

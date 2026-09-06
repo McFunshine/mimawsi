@@ -7,3 +7,6 @@ site_bucket = "mimawsi-site-000000000000"
 operator_token = "replace-me"
 
 google_client_id = "000000000000-example.apps.googleusercontent.com"
+
+# Grok API Key
+grok_api_key = "xai-..."
