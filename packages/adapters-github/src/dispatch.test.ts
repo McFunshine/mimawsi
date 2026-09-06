@@ -36,7 +36,12 @@ describe('slugFor', () => {
 });
 
 describe('announcing a publish', () => {
-  const notice = { tool: tool('Coin Flip'), slug: 'coin-flip', approvedBy: 'Ada', note: 'looks fine' };
+  const notice = {
+    tool: tool('Coin Flip'),
+    slug: 'coin-flip',
+    approvedBy: 'Ada',
+    note: 'looks fine',
+  };
 
   it('posts a dispatch to every target and reports which accepted', async () => {
     const fetch = vi.fn(async () => ok());
@@ -46,7 +51,7 @@ describe('announcing a publish', () => {
         { repo: 'o/site', eventType: 'tool-published' },
         { repo: 'o/record', eventType: 'tool-published' },
       ],
-      fetch: fetch as unknown as typeof globalThis.fetch,
+      fetch: fetch,
     });
 
     const accepted = await dispatcher.announce(notice);
@@ -73,12 +78,14 @@ describe('announcing a publish', () => {
     const dispatcher = githubDispatcher({
       token: 't',
       targets: [{ repo: 'o/record', eventType: 'tool-published' }],
-      fetch: fetch as unknown as typeof globalThis.fetch,
+      fetch: fetch,
     });
 
     await dispatcher.announce(notice);
 
-    const body = JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    const body = JSON.parse(
+      (fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,
+    );
     // The record fetches from the live site instead. A payload carrying both the
     // claim and the evidence would check nothing.
     expect(Object.keys(body.client_payload)).not.toContain('bytes');
@@ -90,16 +97,21 @@ describe('announcing a publish', () => {
     const dispatcher = githubDispatcher({
       token: 't',
       targets: [{ repo: 'o/site', eventType: 'tool-published' }],
-      fetch: fetch as unknown as typeof globalThis.fetch,
+      fetch: fetch,
     });
 
     await dispatcher.announce({
       ...notice,
-      tool: { ...notice.tool, metadata: { ...notice.tool.metadata, description: 'x'.repeat(2000) } },
+      tool: {
+        ...notice.tool,
+        metadata: { ...notice.tool.metadata, description: 'x'.repeat(2000) },
+      },
       note: 'y'.repeat(4000),
     });
 
-    const body = JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    const body = JSON.parse(
+      (fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,
+    );
     // A repository_dispatch client_payload takes at most 10 top-level properties
     // and must be under 64KB. Adding an eleventh field would fail at GitHub rather
     // than here, on a publish that had already happened.
@@ -113,7 +125,7 @@ describe('announcing a publish', () => {
     const dispatcher = githubDispatcher({
       token: 'stale',
       targets: [{ repo: 'o/site', eventType: 'tool-published' }],
-      fetch: fetch as unknown as typeof globalThis.fetch,
+      fetch: fetch,
       log,
     });
 
@@ -130,7 +142,7 @@ describe('announcing a publish', () => {
     const dispatcher = githubDispatcher({
       token: 't',
       targets: [{ repo: 'o/site', eventType: 'tool-published' }],
-      fetch: fetch as unknown as typeof globalThis.fetch,
+      fetch: fetch,
       log: vi.fn(),
     });
 
@@ -162,7 +174,7 @@ describe('announcing a publish', () => {
     const dispatcher = githubDispatcher({
       token: '',
       targets: [{ repo: 'o/site', eventType: 'tool-published' }],
-      fetch: fetch as unknown as typeof globalThis.fetch,
+      fetch: fetch,
       log,
     });
 

@@ -1,0 +1,40 @@
+# Secret scanning.
+#
+# The site repository is public today and the record repository is public
+# permanently. A secret committed to a public repository is compromised the moment
+# it lands: deleting it later clears the tip and not the history, and crawlers
+# watch public pushes in real time. That makes this the one check here whose
+# failure cannot be undone.
+#
+# It is not only a hypothetical. `terraform.tfvars` is gitignored and
+# `terraform.tfvars.example` is tracked; the names differ by one word, and the
+# tracked one is the file an editor opens first.
+
+title = "mimawsi"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "google-oauth-client-id"
+description = "Google OAuth client id — public by design, but worth seeing where it lands"
+regex = '''[0-9]{10,}-[a-z0-9]{20,}\.apps\.googleusercontent\.com'''
+tags = ["google", "low"]
+
+[allowlist]
+description = "Placeholders and documented public values"
+regexTargets = ["match"]
+regexes = [
+  # The example file exists to show the shape of each value.
+  '''\.\.\.''',
+  '''<redacted>''',
+  '''your-.*-here''',
+  # The client id ships in the page: Google's ID-token flow requires the browser
+  # to have it, so it is published on purpose and is not a secret.
+  '''708712241310-3u6rjq51258ufm5ftuehiogcg2k49dnj\.apps\.googleusercontent\.com''',
+]
+paths = [
+  '''package-lock\.json''',
+  '''node_modules''',
+  '''\.terraform''',
+]

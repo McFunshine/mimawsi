@@ -56,9 +56,10 @@ function bearer(headers: Record<string, string | undefined> = {}): string | null
 }
 
 function bodyOf(event: FunctionUrlEvent): SubmitRequest {
-  const raw = event.isBase64Encoded === true
-    ? Buffer.from(event.body ?? '', 'base64').toString('utf8')
-    : (event.body ?? '');
+  const raw =
+    event.isBase64Encoded === true
+      ? Buffer.from(event.body ?? '', 'base64').toString('utf8')
+      : (event.body ?? '');
 
   if (raw === '') {
     return {} as SubmitRequest;
@@ -84,7 +85,10 @@ function bodyOf(event: FunctionUrlEvent): SubmitRequest {
  * depend on a browser or on Google being reachable. Removing it would mean an
  * outage at Google stopped the operator publishing.
  */
-function whoever(presented: string | null, deps: RouteDeps): { current: () => Promise<Maker | null> } {
+function whoever(
+  presented: string | null,
+  deps: RouteDeps,
+): { current: () => Promise<Maker | null> } {
   return {
     async current(): Promise<Maker | null> {
       const asOperator = await operatorIdentity(presented, deps.operatorToken).current();
@@ -144,7 +148,10 @@ export async function route(deps: RouteDeps, event: FunctionUrlEvent): Promise<R
     if (path === '/submit' && method === 'POST') {
       const size = Buffer.byteLength(event.body ?? '', 'utf8');
       if (size > TRANSPORT_LIMIT_BYTES) {
-        return json(413, { error: 'file too large for this endpoint', maxBytes: TRANSPORT_LIMIT_BYTES });
+        return json(413, {
+          error: 'file too large for this endpoint',
+          maxBytes: TRANSPORT_LIMIT_BYTES,
+        });
       }
 
       const result = await submit({ identity, storage: deps.storage }, bodyOf(event));

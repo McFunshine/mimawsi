@@ -22,16 +22,10 @@
     "ViewerProtocolPolicy": "redirect-to-https",
     "AllowedMethods": {
       "Quantity": 2,
-      "Items": [
-        "GET",
-        "HEAD"
-      ],
+      "Items": ["GET", "HEAD"],
       "CachedMethods": {
         "Quantity": 2,
-        "Items": [
-          "GET",
-          "HEAD"
-        ]
+        "Items": ["GET", "HEAD"]
       }
     },
     "Compress": true,

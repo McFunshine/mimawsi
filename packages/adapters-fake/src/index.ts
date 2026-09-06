@@ -1,6 +1,10 @@
 import type { Maker, ScanResult } from '@mimawsi/domain';
 import type {
-  IdentityPort, NotifiableEvent, NotifierPort, Ports, ScannerPort,
+  IdentityPort,
+  NotifiableEvent,
+  NotifierPort,
+  Ports,
+  ScannerPort,
 } from '@mimawsi/ports';
 import { LocalDirectoryStorage } from './storage.ts';
 

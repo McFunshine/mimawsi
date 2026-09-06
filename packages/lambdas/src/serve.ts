@@ -121,49 +121,55 @@ async function readBody(req: IncomingMessage): Promise<SubmitRequest> {
   return parsed as SubmitRequest;
 }
 
-createServer(async (req, res) => {
-  const path = new URL(req.url ?? '/', 'http://x').pathname;
+// The handler body is wrapped in try/catch end to end, so no rejection escapes
+// into Node's unhandled-rejection path. The rule is right in general; this is not
+// one of the cases it is right about.
+createServer(
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
+  async (req, res) => {
+    const path = new URL(req.url ?? '/', 'http://x').pathname;
 
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204, cors);
-    res.end();
-    return;
-  }
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, cors);
+      res.end();
+      return;
+    }
 
-  try {
-    if (path === '/health') {
-      json(res, 200, { ok: true });
-      return;
+    try {
+      if (path === '/health') {
+        json(res, 200, { ok: true });
+        return;
+      }
+      if (path === '/session' && req.method === 'GET') {
+        json(res, 200, { maker: await identityFor(tokenOf(req)).current() });
+        return;
+      }
+      if (path === '/session' && req.method === 'POST') {
+        // The client brings its own token; the server only records that it signed in.
+        const token = tokenOf(req) ?? randomUUID();
+        const maker = await identityFor(token).signIn();
+        json(res, 200, { maker, token });
+        return;
+      }
+      if (path === '/submit' && req.method === 'POST') {
+        const identity = identityFor(tokenOf(req));
+        const result = await submit({ ...ports, identity }, await readBody(req));
+        json(res, result.status, result.body);
+        return;
+      }
+      json(res, 404, { error: 'not found' });
+    } catch (error) {
+      if (error instanceof BadRequest) {
+        json(res, 400, { error: error.message });
+        return;
+      }
+      if (error instanceof TooLarge) {
+        json(res, 413, { error: error.message, maxBytes: MAX_TOOL_BYTES });
+        return;
+      }
+      json(res, 500, { error: error instanceof Error ? error.message : 'unknown' });
     }
-    if (path === '/session' && req.method === 'GET') {
-      json(res, 200, { maker: await identityFor(tokenOf(req)).current() });
-      return;
-    }
-    if (path === '/session' && req.method === 'POST') {
-      // The client brings its own token; the server only records that it signed in.
-      const token = tokenOf(req) ?? randomUUID();
-      const maker = await identityFor(token).signIn();
-      json(res, 200, { maker, token });
-      return;
-    }
-    if (path === '/submit' && req.method === 'POST') {
-      const identity = identityFor(tokenOf(req));
-      const result = await submit({ ...ports, identity }, await readBody(req));
-      json(res, result.status, result.body);
-      return;
-    }
-    json(res, 404, { error: 'not found' });
-  } catch (error) {
-    if (error instanceof BadRequest) {
-      json(res, 400, { error: error.message });
-      return;
-    }
-    if (error instanceof TooLarge) {
-      json(res, 413, { error: error.message, maxBytes: MAX_TOOL_BYTES });
-      return;
-    }
-    json(res, 500, { error: error instanceof Error ? error.message : 'unknown' });
-  }
-}).listen(PORT, () => {
+  },
+).listen(PORT, () => {
   process.stdout.write(`api on http://localhost:${PORT} (store: ${STORE})\n`);
 });

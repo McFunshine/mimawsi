@@ -39,7 +39,7 @@ const children = (node: Node): Node[] =>
 function findHead(node: Node): Element | null {
   for (const child of children(node)) {
     if (child.nodeName === 'head') {
-      return child as Element;
+      return child;
     }
     const nested = findHead(child);
     if (nested) {
@@ -51,7 +51,7 @@ function findHead(node: Node): Element | null {
 
 const isCspMeta = (node: Node): boolean =>
   node.nodeName === 'meta' &&
-  (node as Element).attrs.some(
+  node.attrs.some(
     (attr) =>
       attr.name.toLowerCase() === 'http-equiv' &&
       attr.value.trim().toLowerCase() === 'content-security-policy',

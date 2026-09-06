@@ -63,9 +63,10 @@ function bearer(headers: Record<string, string | undefined> = {}): string | null
 }
 
 function bodyOf(event: AdminEvent): Record<string, unknown> {
-  const raw = event.isBase64Encoded === true
-    ? Buffer.from(event.body ?? '', 'base64').toString('utf8')
-    : (event.body ?? '');
+  const raw =
+    event.isBase64Encoded === true
+      ? Buffer.from(event.body ?? '', 'base64').toString('utf8')
+      : (event.body ?? '');
   if (raw === '') {
     return {};
   }
@@ -129,7 +130,7 @@ export async function route(deps: AdminDeps, event: AdminEvent): Promise<AdminRe
           "style-src 'unsafe-inline' https://accounts.google.com",
           "connect-src 'self' https://accounts.google.com",
           'frame-src https://accounts.google.com',
-          "img-src data: https://*.googleusercontent.com",
+          'img-src data: https://*.googleusercontent.com',
           "form-action 'none'",
           "base-uri 'none'",
         ].join('; '),

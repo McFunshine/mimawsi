@@ -36,19 +36,13 @@
     {
       "Sid": "TagOurOwnLogGroups",
       "Effect": "Allow",
-      "Action": [
-        "logs:TagResource",
-        "logs:UntagResource",
-        "logs:ListTagsForResource"
-      ],
+      "Action": ["logs:TagResource", "logs:UntagResource", "logs:ListTagsForResource"],
       "Resource": "arn:aws:logs:*:418272759693:log-group:/aws/lambda/mimawsi-*"
     },
     {
       "Sid": "ReadMetricNames",
       "Effect": "Allow",
-      "Action": [
-        "cloudwatch:ListMetrics"
-      ],
+      "Action": ["cloudwatch:ListMetrics"],
       "Resource": "*"
     }
   ]

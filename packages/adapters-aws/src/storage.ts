@@ -1,12 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto';
-import {
-  GetObjectCommand,
-  NoSuchKey,
-  PutObjectCommand,
-  S3Client,
-} from '@aws-sdk/client-s3';
+import { GetObjectCommand, NoSuchKey, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type {
-  Submission, SubmissionId, SubmissionState, Tool, ToolMetadata, UserId,
+  Submission,
+  SubmissionId,
+  SubmissionState,
+  Tool,
+  ToolMetadata,
+  UserId,
 } from '@mimawsi/domain';
 import { DuplicateFileError, NotFoundError } from '@mimawsi/ports';
 import type { StoragePort } from '@mimawsi/ports';
@@ -116,10 +116,12 @@ export class S3Storage implements StoragePort {
       // broken record; an orphaned object nothing references is merely litter, and
       // the bucket's lifecycle rule collects it.
       await this.putBytes(`pending/${submission.id.value}.html`, input.bytes);
-      return { next: { ...state, submissions: [...state.submissions, submission] }, result: submission };
+      return {
+        next: { ...state, submissions: [...state.submissions, submission] },
+        result: submission,
+      };
     });
   }
-
 
   async countSince(maker: UserId, since: Date): Promise<number> {
     const cutoff = since.getTime();
@@ -189,7 +191,10 @@ export class S3Storage implements StoragePort {
 
       await this.putBytes(`published/${id.value}.html`, publishedBytes);
       return {
-        next: { ...state, published: [...state.published.filter((t) => t.id.value !== id.value), tool] },
+        next: {
+          ...state,
+          published: [...state.published.filter((t) => t.id.value !== id.value), tool],
+        },
         result: tool,
       };
     });

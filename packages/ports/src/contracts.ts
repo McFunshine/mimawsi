@@ -25,19 +25,29 @@ export function describeStoragePort(name: string, create: () => Promise<StorageP
   describe(`StoragePort contract: ${name}`, () => {
     it('stores a submission as pending and returns it by id', async () => {
       const storage = await create();
-      const submitted = await storage.submit({ bytes: bytesOf('<h1>a</h1>'), metadata: meta('A'), maker });
+      const submitted = await storage.submit({
+        bytes: bytesOf('<h1>a</h1>'),
+        metadata: meta('A'),
+        maker,
+      });
 
       expect(submitted.state).toBe('pending');
       expect(submitted.metadata.title).toBe('A');
       expect(submitted.maker).toEqual(maker);
-      await expect(storage.getSubmission(submitted.id)).resolves.toMatchObject({ id: submitted.id });
+      await expect(storage.getSubmission(submitted.id)).resolves.toMatchObject({
+        id: submitted.id,
+      });
     });
 
     it('records the size and a stable hash of the bytes', async () => {
       const storage = await create();
       const bytes = bytesOf('<h1>same</h1>');
       const first = await storage.submit({ bytes, metadata: meta('A'), maker });
-      const second = await storage.submit({ bytes: bytesOf('<h1>other</h1>'), metadata: meta('B'), maker });
+      const second = await storage.submit({
+        bytes: bytesOf('<h1>other</h1>'),
+        metadata: meta('B'),
+        maker,
+      });
 
       expect(first.sizeBytes).toBe(bytes.byteLength);
       expect(first.sha256).toMatch(/^[0-9a-f]{64}$/);
@@ -54,8 +64,16 @@ export function describeStoragePort(name: string, create: () => Promise<StorageP
 
     it('lists submissions by state and does not leak other states', async () => {
       const storage = await create();
-      const pending = await storage.submit({ bytes: bytesOf('<h1>a</h1>'), metadata: meta('A'), maker });
-      const rejected = await storage.submit({ bytes: bytesOf('<h1>b</h1>'), metadata: meta('B'), maker });
+      const pending = await storage.submit({
+        bytes: bytesOf('<h1>a</h1>'),
+        metadata: meta('A'),
+        maker,
+      });
+      const rejected = await storage.submit({
+        bytes: bytesOf('<h1>b</h1>'),
+        metadata: meta('B'),
+        maker,
+      });
       await storage.setState(rejected.id, 'rejected');
 
       const stillPending = await storage.listSubmissions('pending');
@@ -64,9 +82,15 @@ export function describeStoragePort(name: string, create: () => Promise<StorageP
 
     it('publishes an approved submission with the bytes it is handed, not the ones submitted', async () => {
       const storage = await create();
-      const submitted = await storage.submit({ bytes: bytesOf('<h1>raw</h1>'), metadata: meta('A'), maker });
+      const submitted = await storage.submit({
+        bytes: bytesOf('<h1>raw</h1>'),
+        metadata: meta('A'),
+        maker,
+      });
       await storage.setState(submitted.id, 'approved');
-      const withPolicy = bytesOf('<meta http-equiv="Content-Security-Policy" content="x"><h1>raw</h1>');
+      const withPolicy = bytesOf(
+        '<meta http-equiv="Content-Security-Policy" content="x"><h1>raw</h1>',
+      );
 
       const tool = await storage.publish(submitted.id, withPolicy);
 
@@ -77,7 +101,11 @@ export function describeStoragePort(name: string, create: () => Promise<StorageP
 
     it('does not publish a submission that was never approved', async () => {
       const storage = await create();
-      const submitted = await storage.submit({ bytes: bytesOf('<h1>a</h1>'), metadata: meta('A'), maker });
+      const submitted = await storage.submit({
+        bytes: bytesOf('<h1>a</h1>'),
+        metadata: meta('A'),
+        maker,
+      });
 
       await expect(storage.publish(submitted.id, bytesOf('x'))).rejects.toThrow();
       // The "and not" half: nothing appeared in the published set either.
@@ -91,15 +119,21 @@ export function describeStoragePort(name: string, create: () => Promise<StorageP
       await storage.setState(first.id, 'approved');
       await storage.publish(first.id, bytes);
 
-      await expect(storage.submit({ bytes, metadata: meta('B'), maker })).rejects.toThrow(DuplicateFileError);
+      await expect(storage.submit({ bytes, metadata: meta('B'), maker })).rejects.toThrow(
+        DuplicateFileError,
+      );
       expect(await storage.listSubmissions('pending')).toEqual([]);
     });
 
-    it('counts a maker\'s recent submissions, and only that maker\'s', async () => {
+    it("counts a maker's recent submissions, and only that maker's", async () => {
       const storage = await create();
       await storage.submit({ bytes: bytesOf('<h1>a</h1>'), metadata: meta('A'), maker });
       await storage.submit({ bytes: bytesOf('<h1>b</h1>'), metadata: meta('B'), maker });
-      await storage.submit({ bytes: bytesOf('<h1>c</h1>'), metadata: meta('C'), maker: { value: 'someone-else' } });
+      await storage.submit({
+        bytes: bytesOf('<h1>c</h1>'),
+        metadata: meta('C'),
+        maker: { value: 'someone-else' },
+      });
 
       const anHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       await expect(storage.countSince(maker, anHourAgo)).resolves.toBe(2);
@@ -186,14 +220,17 @@ export function describeScannerPort(
 
     const rejected = samples.rejected;
     const rejectionCase = rejected ? it : it.skip;
-    rejectionCase('rejects the sample it is meant to reject, with at least one finding', async () => {
-      const scanner = await create();
-      const result = await scanner.scan(rejected as Uint8Array);
+    rejectionCase(
+      'rejects the sample it is meant to reject, with at least one finding',
+      async () => {
+        const scanner = await create();
+        const result = await scanner.scan(rejected as Uint8Array);
 
-      expect(result.verdict).toBe('reject');
-      expect(result.findings.length).toBeGreaterThan(0);
-      expect(result.findings.every((f) => f.rule !== '' && f.detail !== '')).toBe(true);
-    });
+        expect(result.verdict).toBe('reject');
+        expect(result.findings.length).toBeGreaterThan(0);
+        expect(result.findings.every((f) => f.rule !== '' && f.detail !== '')).toBe(true);
+      },
+    );
   });
 }
 

@@ -1,0 +1,30 @@
+# Checks that run before a commit lands.
+#
+# Two rules shape this file.
+#
+# It must stay fast. A hook people wait for is a hook people skip with
+# --no-verify, and a skipped hook is worse than no hook because it leaves everyone
+# believing something is being checked. So: staged files only, and no test suite.
+#
+# And it is a convenience, not a gate. Everything here also runs in CI, where it
+# cannot be skipped. If the two ever disagree, the hook is the one that is wrong.
+pre-commit:
+  parallel: true
+  jobs:
+    - name: format
+      glob: '*.{ts,tsx,js,mjs,json,css}'
+      run: npx biome format --write {staged_files}
+      stage_fixed: true
+
+    - name: secrets
+      run: gitleaks git --pre-commit --redact --staged --config .gitleaks.toml --no-banner
+
+pre-push:
+  parallel: true
+  jobs:
+    # Slower, and worth waiting for once per push rather than once per commit.
+    - name: lint
+      run: npm run lint
+
+    - name: typecheck
+      run: npm run typecheck

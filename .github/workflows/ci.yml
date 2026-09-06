@@ -97,6 +97,15 @@ jobs:
       # No browser install step: the container has them. Playwright starts the
       # catalogue, runner and api itself (webServer in playwright.config.ts), so
       # there is nothing to launch here either.
+      # The pre-commit hook runs these too, but a hook is bypassable with
+      # --no-verify. This is the copy that cannot be skipped, and if the two ever
+      # disagree it is the hook that is wrong.
+      - name: Formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
       - name: End-to-end tests
         if: steps.scope.outputs.content_only != 'true'
         run: npm run test:e2e

@@ -5,7 +5,9 @@ const headOf = (html: string) => html.slice(html.indexOf('<head'), html.indexOf(
 
 describe('injectCsp', () => {
   it('puts the policy first in head, before any script', () => {
-    const out = injectCsp('<html><head><script>fetch("https://evil.test")</script></head><body></body></html>');
+    const out = injectCsp(
+      '<html><head><script>fetch("https://evil.test")</script></head><body></body></html>',
+    );
     const head = headOf(out);
     expect(head.indexOf(CSP_META)).toBeGreaterThanOrEqual(0);
     expect(head.indexOf(CSP_META)).toBeLessThan(head.indexOf('<script'));
@@ -49,7 +51,9 @@ describe('injectCsp', () => {
   });
 
   it('preserves the doctype and the document it was given', () => {
-    const out = injectCsp('<!doctype html><html lang="en"><head><title>t</title></head><body><h1>hi</h1></body></html>');
+    const out = injectCsp(
+      '<!doctype html><html lang="en"><head><title>t</title></head><body><h1>hi</h1></body></html>',
+    );
     expect(out.toLowerCase().startsWith('<!doctype html>')).toBe(true);
     expect(out).toContain('<title>t</title>');
     expect(out).toContain('<h1>hi</h1>');

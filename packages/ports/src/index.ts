@@ -1,5 +1,12 @@
 import type {
-  Maker, ScanResult, Submission, SubmissionId, SubmissionState, Tool, ToolMetadata, UserId,
+  Maker,
+  ScanResult,
+  Submission,
+  SubmissionId,
+  SubmissionState,
+  Tool,
+  ToolMetadata,
+  UserId,
 } from '@mimawsi/domain';
 
 /**

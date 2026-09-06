@@ -2,7 +2,12 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import type {
-  Submission, SubmissionId, SubmissionState, Tool, ToolMetadata, UserId,
+  Submission,
+  SubmissionId,
+  SubmissionState,
+  Tool,
+  ToolMetadata,
+  UserId,
 } from '@mimawsi/domain';
 import { DuplicateFileError, NotFoundError } from '@mimawsi/ports';
 import type { StoragePort } from '@mimawsi/ports';
@@ -105,7 +110,6 @@ export class LocalDirectoryStorage implements StoragePort {
       return submission;
     });
   }
-
 
   async countSince(maker: UserId, since: Date): Promise<number> {
     const cutoff = since.getTime();
@@ -222,10 +226,9 @@ export class LocalDirectoryStorage implements StoragePort {
     try {
       return JSON.parse(raw) as Persisted;
     } catch (error) {
-      throw new Error(
-        `corrupted storage index at ${this.indexPath}: ${(error as Error).message}`,
-        { cause: error },
-      );
+      throw new Error(`corrupted storage index at ${this.indexPath}: ${(error as Error).message}`, {
+        cause: error,
+      });
     }
   }
 

@@ -20,11 +20,23 @@
     "dev:runner": "npm run dev --workspace @mimawsi/runner",
     "dev:api": "npm run dev --workspace @mimawsi/lambdas",
     "review": "npm run start --workspace @mimawsi/review-cli --",
-    "publish": "node scripts/publish.mjs"
+    "publish": "node scripts/publish.mjs",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "secrets": "gitleaks git --redact --config .gitleaks.toml --no-banner",
+    "check": "npm run format:check && npm run lint && npm run typecheck",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.12",
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.39.5",
+    "lefthook": "^2.1.12",
     "typescript": "^5.7.2",
-    "vitest": "^3.0.0",
-    "@types/node": "^22.10.0"
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^3.0.0"
   }
 }

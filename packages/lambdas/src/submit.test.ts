@@ -105,7 +105,7 @@ describe('the daily limit', () => {
 
   it('refuses the twenty-first submission in a day', async () => {
     const p = ports(DAILY_SUBMISSION_LIMIT);
-    const result = await submit(p as never, body);
+    const result = await submit(p, body);
 
     expect(result.status).toBe(429);
     // Refused before anything is hashed or written, so a flood costs a read rather
@@ -116,25 +116,31 @@ describe('the daily limit', () => {
   it('allows the twentieth', async () => {
     const p = ports(DAILY_SUBMISSION_LIMIT - 1);
     p.storage.submit = vi.fn(async () => ({
-      id: { value: 'x' }, maker: { value: 'maker-1' },
+      id: { value: 'x' },
+      maker: { value: 'maker-1' },
       metadata: { title: 'A tool', description: '', tags: [] },
-      state: 'pending' as const, sha256: 'h', sizeBytes: 1,
-    })) as never;
+      state: 'pending' as const,
+      sha256: 'h',
+      sizeBytes: 1,
+    }));
 
-    const result = await submit(p as never, body);
+    const result = await submit(p, body);
     expect(result.status).toBe(201);
   });
 
   it('counts over a rolling window, not since midnight', async () => {
     const p = ports(0);
     p.storage.submit = vi.fn(async () => ({
-      id: { value: 'x' }, maker: { value: 'maker-1' },
+      id: { value: 'x' },
+      maker: { value: 'maker-1' },
       metadata: { title: 'A tool', description: '', tags: [] },
-      state: 'pending' as const, sha256: 'h', sizeBytes: 1,
-    })) as never;
+      state: 'pending' as const,
+      sha256: 'h',
+      sizeBytes: 1,
+    }));
 
     const before = Date.now();
-    await submit(p as never, body);
+    await submit(p, body);
 
     const since = (p.storage.countSince.mock.calls[0] as unknown as [unknown, Date])[1];
     const window = before - since.getTime();
@@ -145,8 +151,7 @@ describe('the daily limit', () => {
   });
 
   it('tells the caller the limit and when to come back', async () => {
-    const result = await submit(ports(DAILY_SUBMISSION_LIMIT) as never, body);
+    const result = await submit(ports(DAILY_SUBMISSION_LIMIT), body);
     expect(result.body).toMatchObject({ limit: DAILY_SUBMISSION_LIMIT, retryAfterHours: 24 });
   });
 });
-

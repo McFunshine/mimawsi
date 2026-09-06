@@ -181,7 +181,11 @@ describe('the approval endpoint', () => {
 
     const response = await route(
       d,
-      post('/deny', { id: submitted.id.value, reason: 'it reaches the network', remedy: 'remove the fetch' }),
+      post('/deny', {
+        id: submitted.id.value,
+        reason: 'it reaches the network',
+        remedy: 'remove the fetch',
+      }),
     );
 
     expect(response.statusCode).toBe(200);

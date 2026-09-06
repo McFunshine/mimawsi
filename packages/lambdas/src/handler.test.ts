@@ -115,7 +115,9 @@ describe('route', () => {
     const exploding: RouteDeps = {
       ...deps(),
       storage: {
-        submit: async () => { throw new Error('bucket mimawsi-pending-123 denied'); },
+        submit: async () => {
+          throw new Error('bucket mimawsi-pending-123 denied');
+        },
         countSince: async () => 0,
       },
     };

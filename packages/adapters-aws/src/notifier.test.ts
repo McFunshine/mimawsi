@@ -39,7 +39,9 @@ describe('the rejection email', () => {
 describe('sending', () => {
   const send = () => {
     const ses = { send: vi.fn(async () => ({})) };
-    return ses as unknown as Parameters<typeof emailNotifier>[0]['ses'] & { send: ReturnType<typeof vi.fn> };
+    return ses as unknown as Parameters<typeof emailNotifier>[0]['ses'] & {
+      send: ReturnType<typeof vi.fn>;
+    };
   };
 
   it('sends a rejection to the address recorded against the submission', async () => {
@@ -84,7 +86,11 @@ describe('sending', () => {
     const ses = send();
     const notifier = emailNotifier({ ses, addressFor: async () => 'maker@example.com' });
 
-    await notifier.notify({ kind: 'approved', submission: { value: 's1' }, maker: { value: 'm1' } });
+    await notifier.notify({
+      kind: 'approved',
+      submission: { value: 's1' },
+      maker: { value: 'm1' },
+    });
 
     expect(ses.send).not.toHaveBeenCalled();
   });

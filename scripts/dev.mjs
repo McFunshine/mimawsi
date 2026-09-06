@@ -26,7 +26,11 @@ const children = SERVICES.map(({ name, colour, script }) => {
     stream.on('data', (chunk) => {
       for (const line of chunk.split('\n')) {
         // Node's type-stripping warning is noise on every start.
-        if (line.trim() !== '' && !line.includes('ExperimentalWarning') && !line.includes('trace-warnings')) {
+        if (
+          line.trim() !== '' &&
+          !line.includes('ExperimentalWarning') &&
+          !line.includes('trace-warnings')
+        ) {
           process.stdout.write(`${prefix(line)}\n`);
         }
       }

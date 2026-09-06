@@ -65,7 +65,10 @@ describe('googleIdentity', () => {
   });
 
   it('refuses an expired token', async () => {
-    const t = await token({ iss: 'https://accounts.google.com', aud: OURS, sub: '1' }, { expired: true });
+    const t = await token(
+      { iss: 'https://accounts.google.com', aud: OURS, sub: '1' },
+      { expired: true },
+    );
     expect(await googleIdentity(t, OURS, keys).current()).toBeNull();
   });
 

@@ -4,7 +4,8 @@ import { tempRoot } from './temp-root.ts';
 import { describe, expect, it } from 'vitest';
 import { LocalDirectoryStorage } from './index.ts';
 
-const store = async () => new LocalDirectoryStorage(await mkdtemp(join(tempRoot(), 'mimawsi-durability-')));
+const store = async () =>
+  new LocalDirectoryStorage(await mkdtemp(join(tempRoot(), 'mimawsi-durability-')));
 const maker = { value: 'maker-1' };
 const metadata = { title: 'Tool', description: 'd', tags: [] };
 
