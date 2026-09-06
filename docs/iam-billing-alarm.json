@@ -1,22 +1,4 @@
 {
-  "_comment": [
-    "Add these two statements to the mimawsi-deploy policy, then `terraform apply`.",
-    "",
-    "Checked on 2026-09-06: that identity has neither cloudwatch:PutMetricAlarm nor",
-    "sns:CreateTopic. Both were probed directly and both returned AccessDenied, so",
-    "the note in HANDOFF.md saying it holds CloudWatch and SNS is wrong.",
-    "",
-    "In the IAM console, editing a managed policy creates a NEW VERSION. Tick",
-    "'Set this new version as the default' or the edit saves and changes nothing —",
-    "which is a trap this project has already fallen into once.",
-    "",
-    "Scoped to mimawsi-* names rather than *, so this grant cannot touch alarms or",
-    "topics belonging to anything else in the account.",
-    "",
-    "Deliberately absent: budgets:*. A budget forecasts rather than reacting and",
-    "would be the better instrument, but it is a larger grant and the metric alarm",
-    "closes the unbounded-downside gap today. Add it when this is next revisited."
-  ],
   "Version": "2012-10-17",
   "Statement": [
     {
@@ -47,6 +29,16 @@
         "sns:UntagResource"
       ],
       "Resource": "arn:aws:sns:*:418272759693:mimawsi-*"
+    },
+    {
+      "Sid": "TagOurOwnLogGroups",
+      "Effect": "Allow",
+      "Action": [
+        "logs:TagResource",
+        "logs:UntagResource",
+        "logs:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:logs:*:418272759693:log-group:/aws/lambda/mimawsi-*"
     }
   ]
 }
