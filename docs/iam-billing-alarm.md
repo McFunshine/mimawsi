@@ -31,6 +31,18 @@ edit its own permissions, which is deliberate.
 4. Replace everything in the box with the contents of `iam-billing-alarm.json`
 5. **Next** → name it `mimawsi-billing-alarm` → **Create policy**
 
+## If you have already added it once
+
+Three actions were found missing only when the alarms were actually applied, so
+a policy created before 2026-09-06 15:00 needs replacing with the current file:
+`sns:GetSubscriptionAttributes`, `sns:SetSubscriptionAttributes` and
+`sns:Unsubscribe` — Terraform reads a subscription back after creating it — plus
+`cloudwatch:ListMetrics`, which AWS does not allow to be scoped to a resource and
+so has a statement of its own.
+
+Edit the inline policy `mimawsi-billing-alarm` and paste the file again. An inline
+policy has no versions, so there is nothing to set as default.
+
 ## Then, in Billing
 
 Both of these are console-only. Terraform can do neither, and without the first

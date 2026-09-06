@@ -26,7 +26,10 @@
         "sns:ListSubscriptionsByTopic",
         "sns:ListTagsForResource",
         "sns:TagResource",
-        "sns:UntagResource"
+        "sns:UntagResource",
+        "sns:GetSubscriptionAttributes",
+        "sns:SetSubscriptionAttributes",
+        "sns:Unsubscribe"
       ],
       "Resource": "arn:aws:sns:*:418272759693:mimawsi-*"
     },
@@ -39,6 +42,14 @@
         "logs:ListTagsForResource"
       ],
       "Resource": "arn:aws:logs:*:418272759693:log-group:/aws/lambda/mimawsi-*"
+    },
+    {
+      "Sid": "ReadMetricNames",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:ListMetrics"
+      ],
+      "Resource": "*"
     }
   ]
 }
