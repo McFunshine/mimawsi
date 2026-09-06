@@ -6,9 +6,17 @@
 # review CLI edits it on the operator's laptop and `publish.mjs` commits it; the
 # approval endpoint cannot commit, so it dispatches here instead.
 #
-# Committing to main is what makes this work: the push triggers ci.yml, which
-# already recognises a published.json-only change and skips the browser suite for
-# it, so the deploy is about twenty-five seconds.
+# Committing to main is not by itself enough, and the first run of this workflow
+# proved it. A push authenticated with the automatic GITHUB_TOKEN never triggers
+# another workflow — GitHub refuses, to stop a workflow from setting itself off
+# again — so the entry landed on main, no CI run followed, and the site went on
+# serving a catalogue that did not mention the tool. Every part reported success.
+#
+# So the deploy is called here rather than waited for. deploy.yml holds the only
+# copy of those steps and CI calls the same one, which is what keeps the two from
+# drifting. The alternative was to push with a personal access token so the event
+# looked human; that works, but it puts a long-lived credential in the repository
+# to buy something an explicit call gives for nothing.
 name: Add to the catalogue
 
 on:
@@ -27,6 +35,8 @@ concurrency:
 jobs:
   add:
     runs-on: ubuntu-latest
+    outputs:
+      committed: ${{ steps.commit.outputs.committed }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,7 +54,9 @@ jobs:
           node scripts/add-to-catalogue.mjs /tmp/published.json
 
       - name: Commit, if anything changed
+        id: commit
         run: |
+          echo "committed=false" >> "$GITHUB_OUTPUT"
           if [ -z "$(git status --porcelain)" ]; then
             echo "Already in the catalogue; nothing to commit."
             exit 0
@@ -65,3 +77,22 @@ jobs:
           git add packages/site/src/data/published.json
           git commit -m "Publish ${title}"
           git push origin main
+          echo "committed=true" >> "$GITHUB_OUTPUT"
+
+  # Rebuilding the site is what actually puts the tool on the front page. Nothing
+  # but the catalogue index changed, so there is no code to test that the build
+  # itself does not exercise: a malformed index fails the build, and the build is
+  # the first thing deploy.yml does.
+  #
+  # It deploys main rather than the commit that was just made, because main is
+  # what should be live; if a second approval lands first, the queued deploy
+  # publishes both rather than stepping backwards over one.
+  publish:
+    needs: add
+    if: needs.add.outputs.committed == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      ref: main

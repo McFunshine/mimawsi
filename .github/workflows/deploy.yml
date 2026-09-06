@@ -1,0 +1,110 @@
+# Building the site and putting it in the bucket.
+#
+# Extracted so it has exactly one definition. Two things need to deploy — a push
+# to main, and an approval that adds a tool to the catalogue — and a second copy
+# of these steps is how the two would drift apart. That has already happened once
+# in this project, between the review CLI and the approval endpoint, and both
+# copies worked right up until they did not agree.
+#
+# Deliberately narrow: the site bucket and a CDN invalidation, nothing else.
+# RULE-17a keeps Actions away from DynamoDB and the published S3 prefix, so this
+# must never grow those permissions — publishing a tool goes through the results
+# Lambda instead. Credentials are assumed through OIDC for the length of the job;
+# nothing here holds a long-lived key.
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: The commit, tag or branch to build and publish.
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    # Skips cleanly until the AWS role variable is set, so the build stays green
+    # while the IAM side is still being wired up.
+    if: vars.AWS_DEPLOY_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      id-token: write
+
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The caller names the commit. CI passes the sha it just tested; the
+          # catalogue workflow passes main, because the commit it wants deployed
+          # is the one it made a moment ago and not the one that triggered it.
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Build catalogue
+        run: npm run build --workspace @mimawsi/site
+        env:
+          # Unset until the runner subdomain and the API exist. The pages omit the
+          # frame and the submit endpoint rather than emitting a localhost URL.
+          PUBLIC_RUNNER_ORIGIN: ${{ vars.PUBLIC_RUNNER_ORIGIN }}
+          PUBLIC_API_ORIGIN: ${{ vars.PUBLIC_API_ORIGIN }}
+          # Public by design: Google needs it in the browser. Not the client
+          # secret, which this flow never uses and which is not stored anywhere.
+          PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.PUBLIC_GOOGLE_CLIENT_ID }}
+
+      - name: Refuse to publish a build pointing at localhost
+        run: |
+          if grep -rn "localhost\|127\.0\.0\.1" packages/site/dist/; then
+            echo "::error::Build contains a local address; not publishing."
+            exit 1
+          fi
+          echo "No local addresses in the build."
+
+      - name: Assume the deploy role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # Two syncs, because the bucket holds more than this build produces.
+      #
+      # Published tool bytes live in tools/ and are gitignored (RULE-5: git holds
+      # metadata, bytes live in S3), so they are not in dist/. A single
+      # `sync --delete` treats dist/ as the complete desired state and therefore
+      # deleted every published tool on every deploy — the catalogue kept listing
+      # them and the files kept vanishing, which looked like a publishing bug
+      # rather than a deploy one.
+      #
+      # Everything except tools/ is still mirrored exactly, so stale pages are
+      # still removed.
+      - name: Publish the site to S3
+        run: |
+          aws s3 sync packages/site/dist/ "s3://${{ vars.SITE_BUCKET }}/" \
+            --delete \
+            --exclude "tools/*" \
+            --cache-control "public, max-age=300, must-revalidate"
+
+      # tools/ separately and without --delete: this uploads the committed seed
+      # tool, and must never remove what the publish step put there.
+      - name: Publish the seed tools, without deleting published ones
+        run: |
+          aws s3 sync packages/site/dist/tools/ "s3://${{ vars.SITE_BUCKET }}/tools/" \
+            --cache-control "public, max-age=300, must-revalidate"
+
+      - name: Invalidate the CDN
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.CLOUDFRONT_DIST_ID }}" \
+            --paths "/*"
