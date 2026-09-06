@@ -157,6 +157,29 @@ resource "aws_cloudfront_distribution" "site" {
       restriction_type = "none"
     }
   }
+
+  # S3 denies a missing key rather than admitting it is missing, because the
+  # bucket is not public — so an absent page arrives here as 403, not 404. Both
+  # are mapped, and both answer 404: the page genuinely is not there, and saying
+  # "forbidden" invites a reader to think they are being kept out of something.
+  #
+  # The response code is rewritten as well as the body. A 403 tells a search
+  # engine the page is forbidden and to keep it indexed; a 404 tells it the page
+  # is gone, which is the true and the useful answer.
+  custom_error_response {
+    error_code            = 403
+    response_code         = 404
+    response_page_path    = "/404.html"
+    error_caching_min_ttl = 60
+  }
+
+  custom_error_response {
+    error_code            = 404
+    response_code         = 404
+    response_page_path    = "/404.html"
+    error_caching_min_ttl = 60
+  }
+
   viewer_certificate {
     acm_certificate_arn            = "arn:aws:acm:us-east-1:${var.account_id}:certificate/a3418cde-c6e4-47a0-aabd-05e341ba799b"
     cloudfront_default_certificate = false

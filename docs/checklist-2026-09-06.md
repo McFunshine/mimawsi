@@ -68,6 +68,31 @@ first. A control that depends on remembering to take a backup is not a control.
 
 ---
 
+## 3a. The submit endpoint can be invoked by anyone, without limit
+
+Found while answering "can Lambda get expensive". Not urgent at this size, and
+worth writing down before it is.
+
+`mimawsi-submit` has a Function URL with `authorization_type = NONE` and nothing
+in front of it — no CloudFront, no WAF. The rate limit added in §5 is per
+*account*, and an unauthenticated request is refused **inside** the handler,
+which means it has already cost an invocation by the time it is refused.
+
+Cheap per request and unbounded in count. That is the shape of a bill run up on
+purpose rather than by accident.
+
+- [ ] Put the submit endpoint behind CloudFront, as the approval endpoint already
+      is, so there is somewhere to attach a rate limit.
+- [ ] WAF rate-based rule, or an equivalent, on requests per IP.
+- [ ] Consider refusing before the SDK is touched — the earlier the refusal, the
+      cheaper it is.
+
+Lambda itself is not the cost risk here and should not be treated as one: 512 MB
+for milliseconds is roughly two dollars per million requests. The risk is the
+count being chosen by somebody else.
+
+---
+
 ## 4. Identity for system-generated tools
 
 Coming from the innovation work in §7: the platform will generate tools of its
@@ -144,6 +169,9 @@ discipline that lets storage be a directory in tests and S3 in production.
       published, not after. Today the checks run on what is already live.
 - [ ] A spend ceiling on generation, and a per-run cap on how many tools one
       submission may produce. §1 is the account-wide net; this is the specific one.
+- [ ] A token ceiling per call, inside the adapter. A runaway prompt loop is what
+      produces a genuinely alarming bill, and it is a one-line limit if it is
+      there from the first version rather than added after the first surprise.
 - [ ] Decide what a generated tool says about itself on the site. A visitor
       should be able to tell a person's work from the platform's without reading
       the repository.

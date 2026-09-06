@@ -1,0 +1,46 @@
+---
+import Base from '../layouts/Base.astro';
+
+/**
+ * What a visitor got until now was S3's own AccessDenied XML, with a 403.
+ *
+ * Two things wrong with that. It said "access denied" about a page that simply
+ * does not exist, which invites the reader to think they are being kept out of
+ * something. And a 403 tells a search engine the page is forbidden rather than
+ * absent, so a mistyped link stayed in an index instead of dropping out of it.
+ *
+ * The 403 is S3's doing, not a mistake: the bucket is not public and denies a
+ * missing key rather than admitting it is missing. The distribution turns both
+ * 403 and 404 into this page — see custom_error_response in terraform.
+ */
+---
+<Base title="Not found — mimawsi">
+  <h1>Nothing here</h1>
+  <p class="lede">
+    That page does not exist. It may have been a typo, or a link to a tool that
+    was never published — or one that was taken down.
+  </p>
+
+  <p class="hint">
+    Every tool that is published stays published at the same address, so a link
+    that used to work should still work. If one has stopped, that is worth
+    knowing about.
+  </p>
+
+  <p class="go">
+    <a class="cta" href="/">All tools</a>
+    <a href="/share">Share a tool</a>
+  </p>
+</Base>
+
+<style>
+  .lede { font-size: 1.05rem; }
+  .hint { opacity: .75; }
+  .go {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+    margin-top: 2rem;
+  }
+</style>
