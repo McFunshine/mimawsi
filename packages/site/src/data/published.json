@@ -89,5 +89,18 @@
     "maker": "operator",
     "sha256": "c02799a5c424d3153458ebcc1f59d199bd7914d22f5bb63aacc326ab1390fd8a",
     "sizeBytes": 5461
+  },
+  {
+    "id": {
+      "value": "61929fb7-0148-4151-bb0b-a967e6e10211"
+    },
+    "metadata": {
+      "title": "Caption tool",
+      "description": "puts a caption on an image\n",
+      "tags": []
+    },
+    "maker": "operator",
+    "sha256": "6cc19037125e3ffe8268937f7127611e9eacd63d36a979a2ad1bee5dd5259d5e",
+    "sizeBytes": 12379
   }
 ]
