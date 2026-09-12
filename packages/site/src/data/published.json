@@ -115,5 +115,18 @@
     "maker": "operator",
     "sha256": "47c9016bc1e26c4f842e3d3f1a86bd682caa7bfb7b0d5ed3f0e250421911afb7",
     "sizeBytes": 19932
+  },
+  {
+    "id": {
+      "value": "a3b6884c-eb40-4058-85b7-e0850ef98792"
+    },
+    "metadata": {
+      "title": "XLSX to CSV",
+      "description": "this is to turn an xslx to a csv without having to open excel!",
+      "tags": []
+    },
+    "maker": "108056334774193947679",
+    "sha256": "8fe8fd94b60d891bf8f2bf2b7b0d9266764a23272900e342e7ee0d5f6dd1f7a9",
+    "sizeBytes": 21651
   }
 ]
