@@ -128,5 +128,18 @@
     "maker": "108056334774193947679",
     "sha256": "8fe8fd94b60d891bf8f2bf2b7b0d9266764a23272900e342e7ee0d5f6dd1f7a9",
     "sizeBytes": 21651
+  },
+  {
+    "id": {
+      "value": "e9ce02a6-653c-4109-95ed-68d81cbca052"
+    },
+    "metadata": {
+      "title": "PDF Merge",
+      "description": "to merge pdf files",
+      "tags": []
+    },
+    "maker": "108056334774193947679",
+    "sha256": "243d9f419ba2e74f363ab020bd36977de8f5b50e626b2dfdc722c698207544e5",
+    "sizeBytes": 1890007
   }
 ]
