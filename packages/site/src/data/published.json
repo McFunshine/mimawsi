@@ -141,5 +141,18 @@
     "maker": "108056334774193947679",
     "sha256": "243d9f419ba2e74f363ab020bd36977de8f5b50e626b2dfdc722c698207544e5",
     "sizeBytes": 1890007
+  },
+  {
+    "id": {
+      "value": "e104dfc8-1bf5-43aa-849d-5834976cac82"
+    },
+    "metadata": {
+      "title": "Image Converter",
+      "description": "Convert images between types. ",
+      "tags": []
+    },
+    "maker": "108056334774193947679",
+    "sha256": "8a4b988907d4a6a6b9c51c95b5400abf8ad422cebbc96de1bcbf828e2d523e5e",
+    "sizeBytes": 12134
   }
 ]
