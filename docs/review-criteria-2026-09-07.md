@@ -70,7 +70,7 @@ Probed in a real browser, from `file://`, with every outbound request logged:
 | `WebSocket` | blocked |
 | injected `<script src>` | blocked |
 | `<link rel=prefetch>` | blocked |
-| **form submission to a remote URL** | **escapes** |
+| ~~form submission to a remote URL~~ | **blocked since 2026-09-26** — `form-action 'none'` |
 | **`window.open(url)`** | **escapes** |
 | **`location.href = url`** | **escapes** |
 | **anchor navigation** | **escapes** |
@@ -83,18 +83,25 @@ shipped in any browser.
 not equally protected.**
 
 - **On the site**, the `Try` page frames the tool with
-  `sandbox="allow-scripts allow-downloads"` (`packages/site/src/pages/run/[id].astro:39`).
-  No `allow-forms`, no `allow-popups`, no `allow-top-navigation`. All four
-  escapes are closed by the frame.
+  `sandbox="allow-scripts allow-downloads allow-forms"` (`packages/site/src/pages/run/[id].astro`).
+  No `allow-popups`, no `allow-top-navigation`. `allow-forms` is granted so the
+  `submit` event fires at all (see above); the form channel is closed by
+  `form-action 'none'` in the policy rather than by the sandbox.
 - **Downloaded and double-clicked** — the thing the front page actually tells
   people to do — only the meta policy applies, and all four are open. A tool can
   put everything you typed into a query string and open it.
 
 Two consequences:
 
-1. `form-action 'none'; base-uri 'none'` should be added to the injected policy.
-   It costs nothing, closes the form channel in the downloaded copy, and closes
-   a `<base>` redirect trick. Cheap, and it shrinks what review has to catch.
+1. ~~`form-action 'none'; base-uri 'none'` should be added to the injected policy.~~
+   **Done, 2026-09-26.** It cost nothing and closed the form channel in the
+   downloaded copy, exactly as predicted. What was *not* predicted: withholding
+   `allow-forms` on the Try frame does not merely block submission, it suppresses
+   the `submit` event, so every tool handling a form the ordinary way was dead in
+   the frame while working when downloaded. `villa-prisma` found this. The frame
+   now grants `allow-forms` and the policy denies the navigation instead — safer
+   in the downloaded copy than before, and no longer lying to the reviewer about
+   what the maker submitted. See TC-CSP13/14 and TC-S05/06.
 2. `window.open` and `location.href` cannot be closed by policy. **They are
    permanently a review question**, and check 4 below exists precisely because
    there is no technical control to replace it.

@@ -31,12 +31,22 @@ const runnerOrigin =
     sandbox without allow-same-origin gives the frame an opaque origin, so the
     tool cannot reach this page's origin, storage or document (AC-5). Do not add
     allow-same-origin: it would hand back everything the sandbox is here to deny.
+
+    allow-forms is not a relaxation. Without it the browser suppresses the
+    `submit` event itself — earlier in the form submission algorithm than the
+    point where the event is dispatched — so a tool that handles its form with
+    `preventDefault()`, which is the ordinary way to do it, silently does
+    nothing here while working perfectly once downloaded. (WebKit dispatched it
+    anyway; Chromium and Firefox did not.) Egress is denied by
+    `form-action 'none'` in the injected policy instead, which is checked at
+    navigation time and so leaves the event intact. Measured on all three
+    engines: TC-CSP13 and TC-CSP14.
   */}
   {runnerOrigin ? (
     <iframe
       title={`Running ${title}`}
       src={`${runnerOrigin}/${id}.html`}
-      sandbox="allow-scripts allow-downloads"
+      sandbox="allow-scripts allow-downloads allow-forms"
       referrerpolicy="no-referrer"
       loading="eager"
     ></iframe>

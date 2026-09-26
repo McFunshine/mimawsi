@@ -19,9 +19,22 @@ type Element = DefaultTreeAdapterMap['element'];
  * Confirmed enforced from `file://` in Chromium, Firefox and WebKit — see
  * spikes/ed-1-csp/FINDINGS.md and tests/specs/csp. Changing this string
  * invalidates every one of those results.
+ *
+ * `form-action 'none'` closes the one exfiltration channel that survived the
+ * original policy in a *downloaded* copy: CSP has no directive against
+ * navigation, but a form submission is checked against form-action before it
+ * navigates, so a tool can no longer post what you typed to a remote URL.
+ * `base-uri 'none'` closes the `<base>` redirect that would otherwise reopen it.
+ *
+ * Both are checked at navigation time, which is *after* the `submit` event is
+ * dispatched. A tool that calls `preventDefault()` — the ordinary way to handle
+ * a form — is unaffected. That ordering is what lets the Try frame grant
+ * `allow-forms` (see packages/site/src/pages/run/[id].astro) without granting
+ * egress: without it the sandbox suppresses the `submit` event entirely and the
+ * tool's own handler never runs.
  */
 export const TOOL_CSP =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:";
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; form-action 'none'; base-uri 'none'";
 
 export const CSP_META = `<meta http-equiv="Content-Security-Policy" content="${TOOL_CSP}">`;
 

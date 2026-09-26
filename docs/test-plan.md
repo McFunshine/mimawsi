@@ -53,6 +53,8 @@ wired in. Replacing a fake never edits it.
 | TC-CSP10 | Injector output on malformed markup still carries an enforced policy | AC-38 | done — green on 3 engines (task-1.5, parse5) |
 | TC-CSP11 | Injected meta is the first element in `<head>` | AC-38 | done — green on 3 engines (task-1.5, parse5) |
 | TC-CSP12 | A tool that already declares a weaker CSP does not get to keep it | AC-38 | done — green on 3 engines (task-1.5, parse5) |
+| TC-CSP13 | A form cannot submit to an external origin | AC-54 | done — green on 3 engines (`form-action 'none'`) |
+| TC-CSP14 | A form handled with `preventDefault` still works | AC-55 | done — green on 3 engines |
 
 ## Catalogue — the read path (`specs/catalogue/`)
 
@@ -76,6 +78,12 @@ Assert at the frame boundary only. Never locate inside tool content.
 | TC-S02 | A running tool's network attempt is refused and nothing is answered | AC-6 | blocked |
 | TC-S03 | A deliberately hostile fixture tool cannot escape the sandbox | AC-60 | blocked |
 | TC-S04 | A dropped file runs locally with no transmission | AC-10 | blocked |
+| TC-S05 | A form handled with `preventDefault` works inside the Try frame | AC-55 | done — green on 3 engines; cannot fail on WebKit, which dispatches `submit` without `allow-forms` |
+| TC-S06 | A form inside the Try frame still cannot submit to an external origin | AC-6, AC-54 | done — green on 3 engines |
+
+TC-S05 and TC-S06 locate inside the frame, against fixtures authored in the spec.
+That is the one deviation from the boundary rule above and the spec says why: a
+suppressed `submit` event has no boundary signal at all.
 
 ## Sharing — the write path (`specs/api/`, `specs/catalogue/`)
 

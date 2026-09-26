@@ -56,6 +56,17 @@ which runs on all three engines on every commit.
   fixture watches responses instead, and that is the oracle that must stay empty.
 - **No `requestfailed` event fires for a CSP-blocked `fetch`** in any engine — it is
   refused before the network stack. Absence of a failure event is not absence of a block.
+- **A sandboxed frame without `allow-forms` never dispatches the `submit` event**
+  in Chromium or Firefox — the check sits earlier in the form submission algorithm
+  than the dispatch, so a tool's own `preventDefault` handler never runs and the
+  control silently does nothing. **WebKit dispatches it anyway.** This is why the
+  Try frame grants `allow-forms`: the grant is what makes the event fire, and
+  `form-action 'none'` is what denies the navigation. Held by TC-S05/TC-S06.
+- **`form-action` is checked at navigation time, after `submit` is dispatched.**
+  So denying it costs a well-behaved tool nothing. Verified on all three engines;
+  it is the whole reason the frame can be opened up without opening egress.
 - The verified policy is
-  `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:`
+  `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; form-action 'none'; base-uri 'none'`
   and lives in `tests/support/policy.ts`. Changing that string invalidates every result above.
+  `form-action` and `base-uri` were added on 2026-09-26; everything above them was
+  re-run green on all three engines at that point.

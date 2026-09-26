@@ -141,7 +141,10 @@ const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID ?? null;
 
     const frame = document.createElement('iframe');
     frame.title = `Running ${title}`;
-    frame.setAttribute('sandbox', 'allow-scripts allow-downloads');
+    // allow-forms for the reason given in run/[id].astro: without it the submit
+    // event never fires and a form-driven tool looks broken in preview but works
+    // when downloaded. form-action 'none' in the injected policy denies egress.
+    frame.setAttribute('sandbox', 'allow-scripts allow-downloads allow-forms');
     frame.setAttribute('referrerpolicy', 'no-referrer');
     frame.srcdoc = html;
 
