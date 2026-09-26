@@ -52,6 +52,9 @@ export default tseslint.config(
       'packages/site/dist/**',
       'spikes/**',
       // Generated or vendored: linting them reports on decisions nobody here made.
+      // notes/ is gitignored build scratch; linting it blocked the pre-push hook
+      // on 3,438 problems in files git does not track.
+      'notes/**',
       'packages/lambdas/dist/**',
       'playwright-transform-cache-*/**',
       'node-compile-cache/**',
