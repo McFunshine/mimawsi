@@ -281,5 +281,24 @@
     "maker": "108056334774193947679",
     "sha256": "9a7292df47dffed390f7651c1929815752add44782aeb9f83175e0affc275320",
     "sizeBytes": 58183
+  },
+  {
+    "id": {
+      "value": "365bce65-afc3-46e7-8f54-be46df2fe49f"
+    },
+    "metadata": {
+      "title": "Chart Position quiz",
+      "description": "keep a streak of which singles charted higher or lower in the UK charts",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "d9029ec5d26d1665894a3f6ce81ce3ac29b8e5ec5701d3c6cd8c98aa428077c4",
+    "sizeBytes": 13276
   }
 ]
