@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { S3Storage } from '@mimawsi/adapters-aws';
 import { fakePorts } from '@mimawsi/adapters-fake';
+import { collectionSlugProblem } from '@mimawsi/domain';
 import { publishSubmission } from '@mimawsi/publisher';
 import { NoSuchSubmission, selectTarget } from './select-target.ts';
 import type { Tool } from '@mimawsi/domain';
@@ -141,6 +142,61 @@ switch (command) {
     break;
   }
 
+  /**
+   * Collections, from the command line.
+   *
+   * The approval page can create one, and that is the ordinary path. This exists
+   * because the page can only offer what the store already holds, and the store
+   * starts empty — so the first collection has to come from somewhere else. It is
+   * also the way to add one without signing in.
+   *
+   *   review collections
+   *   review collections create <slug> <title> [blurb]
+   */
+  case 'collections': {
+    const [action, slug, title, ...blurbWords] = rest;
+
+    if (action === undefined || action === 'list') {
+      const collections = await ports.storage.listCollections();
+      if (collections.length === 0) {
+        process.stdout.write('no collections\n');
+      }
+      for (const c of collections) {
+        process.stdout.write(`${c.slug}  ${c.title}${c.listed ? '' : '  (unlisted)'}\n`);
+      }
+      break;
+    }
+
+    if (action !== 'create') {
+      fail('usage: review collections [list] | review collections create <slug> <title> [blurb]');
+    }
+
+    // The same check the endpoint runs, from the same function. A slug typed at a
+    // terminal is no more trustworthy than one posted to the Lambda.
+    const problem = collectionSlugProblem(slug);
+    if (problem !== null) {
+      fail(`${JSON.stringify(slug ?? '')}: ${problem}`);
+    }
+    if (title === undefined || title.trim() === '') {
+      fail('a title is required');
+    }
+
+    // Unlisted, like the endpoint's. Putting a collection on the front page is an
+    // edit to the site's collections.json, not a flag passed while making one.
+    const created = await ports.storage.createCollection({
+      slug: slug as string,
+      title: title.trim(),
+      blurb: blurbWords.join(' ').trim(),
+      listed: false,
+    });
+    process.stdout.write(`created ${created.slug} (${created.title}), unlisted\n`);
+    break;
+  }
+
   default:
-    fail('usage: review <list|approve|reject> [--latest|<id>] [reason] [remedy]');
+    fail(
+      'usage: review <list|approve|reject> [--latest|<id>] [reason] [remedy]\n' +
+        '       review collections [list]\n' +
+        '       review collections create <slug> <title> [blurb]',
+    );
 }
