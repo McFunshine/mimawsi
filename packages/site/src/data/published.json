@@ -178,9 +178,7 @@
       "tags": []
     },
     "curation": {
-      "collections": [
-        "dina"
-      ],
+      "collections": ["dina"],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -197,9 +195,7 @@
       "tags": []
     },
     "curation": {
-      "collections": [
-        "dina"
-      ],
+      "collections": ["dina"],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -216,9 +212,7 @@
       "tags": []
     },
     "curation": {
-      "collections": [
-        "dina"
-      ],
+      "collections": ["dina"],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -235,9 +229,7 @@
       "tags": []
     },
     "curation": {
-      "collections": [
-        "dina"
-      ],
+      "collections": ["dina"],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -254,9 +246,7 @@
       "tags": []
     },
     "curation": {
-      "collections": [
-        "dina"
-      ],
+      "collections": ["dina"],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -273,9 +263,7 @@
       "tags": []
     },
     "curation": {
-      "collections": [
-        "dina"
-      ],
+      "collections": ["dina"],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -292,9 +280,7 @@
       "tags": []
     },
     "curation": {
-      "collections": [
-        "dina"
-      ],
+      "collections": ["dina"],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -311,8 +297,8 @@
       "tags": []
     },
     "curation": {
-      "collections": [],
-      "hidden": false
+      "collections": ["dina"],
+      "hidden": true
     },
     "maker": "108056334774193947679",
     "sha256": "cf809d98e8879162f100ab715f82d20d984028f7fecae09b7a9e29f0cae4facc",
@@ -328,8 +314,8 @@
       "tags": []
     },
     "curation": {
-      "collections": [],
-      "hidden": false
+      "collections": ["dina"],
+      "hidden": true
     },
     "maker": "108056334774193947679",
     "sha256": "984cb3d717879b2f4de3aae49f3bf63f66ed2041c6d5aefcc62fe74b37b1ac6d",
@@ -345,9 +331,7 @@
       "tags": []
     },
     "curation": {
-      "collections": [
-        "dina"
-      ],
+      "collections": ["dina"],
       "hidden": true
     },
     "maker": "108056334774193947679",
