@@ -186,5 +186,24 @@
     "maker": "108056334774193947679",
     "sha256": "3818bc1b3afbe1affe131449a4e45ace5229562f69f5c10d64f8c5925b04f96d",
     "sizeBytes": 14038
+  },
+  {
+    "id": {
+      "value": "6d342908-9381-494c-8f2a-1778cd97c922"
+    },
+    "metadata": {
+      "title": "A Cipher",
+      "description": "try and solve this super strong encryption!!!",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "5ac0a808b02d6880e73332c1dde8287435cc6fab57638c1006a8bb87450667cd",
+    "sizeBytes": 13043
   }
 ]
