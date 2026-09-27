@@ -300,5 +300,22 @@
     "maker": "108056334774193947679",
     "sha256": "d9029ec5d26d1665894a3f6ce81ce3ac29b8e5ec5701d3c6cd8c98aa428077c4",
     "sizeBytes": 13276
+  },
+  {
+    "id": {
+      "value": "c2d343c3-d1bf-475f-9509-562be6eb5164"
+    },
+    "metadata": {
+      "title": "MSP Brighton Jigsaw",
+      "description": "James Dean has fallen apart in brighton - your job is to pull him back together!",
+      "tags": []
+    },
+    "curation": {
+      "collections": [],
+      "hidden": false
+    },
+    "maker": "108056334774193947679",
+    "sha256": "cf809d98e8879162f100ab715f82d20d984028f7fecae09b7a9e29f0cae4facc",
+    "sizeBytes": 58069
   }
 ]
