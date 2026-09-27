@@ -357,5 +357,24 @@
     "maker": "108056334774193947679",
     "sha256": "87b729e2a4901d5def453aea6ccbd7eff90ab1f6ef3f5ced3bc8727abe8eec72",
     "sizeBytes": 17432
+  },
+  {
+    "id": {
+      "value": "cb336edc-9928-4c7d-8819-31dbfe38bfa0"
+    },
+    "metadata": {
+      "title": "MSP singer to song",
+      "description": "which guest singers sang on which songs",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "43a9a905dc02c9a920ea662932739b5efa91303f322fb2a48473646b2dd391f2",
+    "sizeBytes": 12377
   }
 ]
