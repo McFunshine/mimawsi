@@ -174,8 +174,14 @@ export class S3Storage implements StoragePort {
     id: SubmissionId,
     publishedBytes: Uint8Array,
     curation: Curation = NO_CURATION,
+    replaces?: SubmissionId,
   ): Promise<Tool> {
     assertSafeId(id);
+    // The replacement target becomes an object key too, and it arrives from a
+    // request body. Same constraint, same reason.
+    if (replaces) {
+      assertSafeId(replaces);
+    }
 
     return this.mutate(async (state) => {
       const submission = state.submissions.find((s) => s.id.value === id.value);
@@ -186,8 +192,18 @@ export class S3Storage implements StoragePort {
         throw new Error(`submission ${id.value} is ${submission.state}, not approved`);
       }
 
+      /*
+        The id this is published under, which is not always the submission's own.
+        A replacement serves its bytes at the superseded tool's id so that every
+        link already given out keeps working — see `publish` on StoragePort.
+      */
+      const publishedAs = replaces ?? submission.id;
+      if (replaces && !state.published.some((t) => t.id.value === replaces.value)) {
+        throw new NotFoundError(`published tool ${replaces.value}`);
+      }
+
       const tool: Tool = {
-        id: submission.id,
+        id: publishedAs,
         metadata: submission.metadata,
         maker: submission.maker.value,
         // The submitted hash, not a hash of the published bytes: this is what
@@ -202,11 +218,11 @@ export class S3Storage implements StoragePort {
         curation,
       };
 
-      await this.putBytes(`published/${id.value}.html`, publishedBytes);
+      await this.putBytes(`published/${publishedAs.value}.html`, publishedBytes);
       return {
         next: {
           ...state,
-          published: [...state.published.filter((t) => t.id.value !== id.value), tool],
+          published: [...state.published.filter((t) => t.id.value !== publishedAs.value), tool],
         },
         result: tool,
       };

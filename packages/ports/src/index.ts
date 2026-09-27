@@ -122,8 +122,24 @@ export interface StoragePort
    * wholesale from the store, so curation kept only in the dispatch payload would
    * be erased by the next rebuild. Omitted means `NO_CURATION` — in no collection,
    * listed like anything else.
+   *
+   * `replaces` names an already-published tool this submission supersedes. Its
+   * bytes are then served under *that* tool's id, not this submission's: the run
+   * page, the download link and the catalogue entry are the ones that already
+   * exist, so every link anybody has been given keeps working. The entry's title,
+   * description, hash and size become the new submission's — it is the same tool,
+   * in a newer version.
+   *
+   * The superseded submission record is left exactly as it was. Two submissions
+   * then point at one published tool, which is the truth: two people sent two
+   * files, and one of them is what the site serves.
    */
-  publish(id: SubmissionId, publishedBytes: Uint8Array, curation?: Curation): Promise<Tool>;
+  publish(
+    id: SubmissionId,
+    publishedBytes: Uint8Array,
+    curation?: Curation,
+    replaces?: SubmissionId,
+  ): Promise<Tool>;
 }
 
 /** Who is asking. Becomes Google OAuth at task-3.4. */

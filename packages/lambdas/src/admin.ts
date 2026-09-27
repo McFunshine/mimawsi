@@ -37,7 +37,10 @@ export interface AdminResponse {
 }
 
 export interface AdminDeps {
-  readonly storage: Pick<StoragePort, 'publish' | 'listCollections' | 'createCollection'> &
+  readonly storage: Pick<
+    StoragePort,
+    'publish' | 'listCollections' | 'createCollection' | 'listPublished'
+  > &
     ReviewStorage;
   /** Resolves the caller from a bearer token. Google only — no operator token here. */
   readonly identify: (token: string | null) => Promise<Maker | null>;
@@ -200,6 +203,22 @@ export async function route(deps: AdminDeps, event: AdminEvent): Promise<AdminRe
       };
     }
 
+    /*
+      What the page's "replace" picker offers. Deliberately small: a replacement
+      is chosen by a person reading a list, and the maker is there so it is
+      obvious when the tool being replaced belongs to somebody else.
+    */
+    if (path === '/published' && method === 'GET') {
+      const published = await deps.storage.listPublished();
+      return json(200, {
+        published: published.map((t) => ({
+          id: t.id.value,
+          title: t.metadata.title,
+          maker: t.maker,
+        })),
+      });
+    }
+
     // What the page draws its tick-boxes from. Fetched rather than baked into the
     // HTML: collections are created at runtime now, so a page rendered an hour ago
     // would offer a stale list.
@@ -272,6 +291,23 @@ export async function route(deps: AdminDeps, event: AdminEvent): Promise<AdminRe
         publishing into the collections that do exist beats failing a review that
         has already been done.
       */
+      /*
+        Replacing an already-published tool rather than adding one.
+
+        The superseded tool is looked up here, not trusted from the body, for two
+        reasons: an id naming nothing would publish a tool at a URL the catalogue
+        has no entry for, and the *record repository's* directory comes from the
+        original's title. Sending the new title's slug would start a second folder
+        and leave the first orphaned, splitting one tool's history in two.
+      */
+      const replacesId = asId(body.replaces);
+      const superseded = replacesId
+        ? (await deps.storage.listPublished()).find((t) => t.id.value === replacesId.value)
+        : undefined;
+      if (replacesId && !superseded) {
+        return json(400, { error: `nothing published with id ${replacesId.value}` });
+      }
+
       const known = await deps.storage.listCollections();
       const curation: Curation = {
         collections: knownCollectionSlugs(
@@ -285,7 +321,7 @@ export async function route(deps: AdminDeps, event: AdminEvent): Promise<AdminRe
       // The same publishSubmission the CLI calls. Not a second implementation —
       // that divergence is what put a tool in the catalogue whose file was never
       // uploaded, and it is why the publisher was extracted.
-      const { tool } = await publishSubmission(deps, id, deps.targets, curation);
+      const { tool } = await publishSubmission(deps, id, deps.targets, curation, superseded?.id);
 
       // After the bytes are live, and never allowed to fail the publish. The tool
       // is reachable at this point; reporting the approval as failed because a
@@ -294,7 +330,10 @@ export async function route(deps: AdminDeps, event: AdminEvent): Promise<AdminRe
       // which is visible and fixable, rather than wrong and silent.
       const announced = await deps.dispatcher.announce({
         tool,
-        slug: slugFor(tool),
+        // The superseded tool's slug when replacing, so the record repository
+        // commits into the folder that already holds this tool's history rather
+        // than starting a second one under the new title.
+        slug: slugFor(superseded ?? tool),
         note,
         approvedBy: maker.displayName,
         // In full, not as slugs: the site keeps its own committed copy of the
@@ -304,6 +343,11 @@ export async function route(deps: AdminDeps, event: AdminEvent): Promise<AdminRe
 
       return json(200, {
         published: { id: tool.id.value, title: tool.metadata.title },
+        // Named in the reply so the page can say "replaced X" rather than
+        // "published", which are different things to have just done.
+        ...(superseded
+          ? { replaced: { id: superseded.id.value, title: superseded.metadata.title } }
+          : {}),
         // Told to the approver rather than logged, because if this is empty the
         // tool is live but unlisted, and they are the only person who will know.
         announced,

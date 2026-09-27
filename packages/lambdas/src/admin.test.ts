@@ -349,6 +349,136 @@ describe('the approval endpoint', () => {
   });
 
   /**
+   * Replacing a published tool with a newer version of it.
+   *
+   * The whole point is that the address does not change, so these assert on the
+   * id and on the slug sent to the record — a replacement that published to a new
+   * id, or recorded into a new folder, would look successful and would have
+   * broken the thing it exists to preserve.
+   */
+  describe('replacing a published tool', () => {
+    async function withPublished(title = 'Jigsaw') {
+      const storage = await storageWith();
+      const first = await storage.submit({
+        bytes: bytes('<h1>v1</h1>'),
+        metadata: { title, description: 'the first one', tags: [] },
+        maker: { value: 'maker-1' },
+      });
+      await storage.setState(first.id, 'approved');
+      const original = await storage.publish(first.id, bytes('<h1>v1</h1>'));
+
+      const remade = await storage.submit({
+        bytes: bytes('<h1>v2</h1>'),
+        metadata: { title: `${title} remade`, description: 'the better one', tags: [] },
+        maker: { value: 'maker-1' },
+      });
+      return { storage, original, remade };
+    }
+
+    it('publishes the new file at the original tool id', async () => {
+      const { storage, original, remade } = await withPublished();
+      const d = await deps({ storage });
+
+      const response = await route(
+        d,
+        post('/approve', { id: remade.id.value, replaces: original.id.value }),
+      );
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.published.id).toBe(original.id.value);
+      expect(body.replaced.id).toBe(original.id.value);
+
+      const published = await storage.listPublished();
+      expect(published).toHaveLength(1);
+      expect(published[0]?.metadata.title).toBe('Jigsaw remade');
+    });
+
+    it('records into the original tool’s folder, not the new title’s', async () => {
+      const announce = vi.fn(async (_n: Parameters<AdminDeps['dispatcher']['announce']>[0]) => [
+        'o/record',
+      ]);
+      const { storage, original, remade } = await withPublished();
+      const d = await deps({ storage, dispatcher: { announce } });
+
+      await route(d, post('/approve', { id: remade.id.value, replaces: original.id.value }));
+
+      // "jigsaw", from the original — not "jigsaw-remade". A new folder would
+      // orphan the old one and split one tool's history across two directories.
+      expect(announce.mock.calls[0]?.[0].slug).toBe('jigsaw');
+      expect(announce.mock.calls[0]?.[0].tool.id.value).toBe(original.id.value);
+    });
+
+    it('publishes as new when nothing is chosen, which is what an empty picker sends', async () => {
+      const { storage, original, remade } = await withPublished();
+      const d = await deps({ storage });
+
+      // The select's "— publish as new —" option has an empty value.
+      await route(d, post('/approve', { id: remade.id.value, replaces: '' }));
+
+      const published = await storage.listPublished();
+      expect(published).toHaveLength(2);
+      expect(published.map((t) => t.id.value)).toContain(original.id.value);
+      expect(published.map((t) => t.id.value)).toContain(remade.id.value);
+    });
+
+    it('refuses an id that names nothing published, and publishes nothing', async () => {
+      const { storage, remade } = await withPublished();
+      const d = await deps({ storage });
+
+      const response = await route(
+        d,
+        post('/approve', { id: remade.id.value, replaces: 'not-a-published-tool' }),
+      );
+
+      expect(response.statusCode).toBe(400);
+      // The "and not" half: the submission is untouched and nothing was published.
+      await expect(storage.getSubmission(remade.id)).resolves.toMatchObject({ state: 'pending' });
+      expect(await storage.listPublished()).toHaveLength(1);
+    });
+
+    it('carries curation onto the replacement', async () => {
+      const { storage, original, remade } = await withPublished();
+      await storage.createCollection({
+        slug: 'dina',
+        title: 'For Dina',
+        blurb: '',
+        listed: false,
+      });
+      const d = await deps({ storage });
+
+      await route(
+        d,
+        post('/approve', {
+          id: remade.id.value,
+          replaces: original.id.value,
+          collections: ['dina'],
+          hidden: true,
+        }),
+      );
+
+      const published = await storage.listPublished();
+      expect(published[0]?.curation).toEqual({ collections: ['dina'], hidden: true });
+    });
+
+    it('lists what can be replaced, and refuses a stranger the list', async () => {
+      const { storage } = await withPublished();
+
+      const mine = await route(await deps({ storage }), get('/published'));
+      expect(mine.statusCode).toBe(200);
+      const listed = JSON.parse(mine.body).published;
+      expect(listed).toHaveLength(1);
+      expect(listed[0]).toMatchObject({ title: 'Jigsaw', maker: 'maker-1' });
+
+      const theirs = await route(
+        await deps({ storage, identify: async () => STRANGER }),
+        get('/published'),
+      );
+      expect(theirs.statusCode).toBe(403);
+    });
+  });
+
+  /**
    * Creating a collection from the approval page.
    *
    * The slug becomes a URL path segment and a directory name, so it is checked

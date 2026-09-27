@@ -164,6 +164,7 @@ export class LocalDirectoryStorage implements StoragePort {
     id: SubmissionId,
     publishedBytes: Uint8Array,
     curation: Curation = NO_CURATION,
+    replaces?: SubmissionId,
   ): Promise<Tool> {
     return this.mutate(async () => {
       const state = await this.read();
@@ -175,8 +176,15 @@ export class LocalDirectoryStorage implements StoragePort {
         throw new Error(`submission ${id.value} is ${submission.state}, not approved`);
       }
 
+      // Not always the submission's own id: a replacement serves its bytes under
+      // the superseded tool's id, so links already given out keep working.
+      const publishedAs = replaces ?? submission.id;
+      if (replaces && !state.published.some((t) => t.id.value === replaces.value)) {
+        throw new NotFoundError(`published tool ${replaces.value}`);
+      }
+
       const tool: Tool = {
-        id: submission.id,
+        id: publishedAs,
         metadata: submission.metadata,
         maker: submission.maker.value,
         sha256: submission.sha256,
@@ -184,8 +192,8 @@ export class LocalDirectoryStorage implements StoragePort {
         curation,
       };
 
-      await this.writeFileAt(`published/${id.value}.html`, publishedBytes);
-      state.published = [...state.published.filter((t) => t.id.value !== id.value), tool];
+      await this.writeFileAt(`published/${publishedAs.value}.html`, publishedBytes);
+      state.published = [...state.published.filter((t) => t.id.value !== publishedAs.value), tool];
       await this.write(state);
       return tool;
     });

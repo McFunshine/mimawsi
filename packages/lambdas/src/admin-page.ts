@@ -46,6 +46,11 @@ export function page(googleClientId: string): string {
   .addbox { display: none; margin-top: .5rem; gap: .4rem; flex-wrap: wrap; align-items: center; }
   .addbox.open { display: flex; }
   .addbox input { font: inherit; padding: .35rem .5rem; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: inherit; }
+  .replace { margin-top: .75rem; }
+  .replace label { display: block; font-size: .9rem; opacity: .8; margin-bottom: .25rem; }
+  .replace select { font: inherit; width: 100%; padding: .4rem .5rem; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: inherit; }
+  .replace .why { font-size: .85rem; opacity: .7; margin: .35rem 0 0; }
+  .replace .warn { color: var(--bad); }
   textarea.note { min-height: 3.5rem; }
   .denybox { display: none; margin-top: .75rem; border-top: 1px dashed var(--line); padding-top: .75rem; }
   .denybox.open { display: block; }
@@ -83,6 +88,8 @@ export function page(googleClientId: string): string {
   // created. Not baked into this HTML: collections are made at runtime, so a page
   // rendered an hour ago would offer a stale list.
   var COLLECTIONS = [];
+  // Every published tool, for the replace picker. Fetched with the queue.
+  var PUBLISHED = [];
   // One redraw function per open card, so creating a collection updates the
   // tick-boxes on all of them at once.
   var redraws = [];
@@ -259,6 +266,62 @@ export function page(googleClientId: string): string {
     curation.appendChild(addBox);
     el.appendChild(curation);
 
+    // Replacing an existing tool rather than adding one. A select rather than a
+    // search box: there are tens of tools, not thousands, and a list you can read
+    // is better than a box you have to guess the contents of. When that stops
+    // being true, this is where a filter goes.
+    var replaceBox = document.createElement('div');
+    replaceBox.className = 'replace';
+    var replaceLabel = document.createElement('label');
+    replaceLabel.textContent = 'Replace an existing tool';
+    var replaceId = 'replace-' + item.id;
+    replaceLabel.setAttribute('for', replaceId);
+    var picker = document.createElement('select');
+    picker.id = replaceId;
+
+    var none = document.createElement('option');
+    none.value = '';
+    none.textContent = '— publish as new —';
+    picker.appendChild(none);
+    PUBLISHED.forEach(function (t) {
+      var o = document.createElement('option');
+      o.value = t.id;
+      o.textContent = t.title + ' — ' + t.maker;
+      picker.appendChild(o);
+    });
+
+    var replaceWhy = text('p', 'A replacement keeps the original\u2019s address, so every link already shared keeps working, and the record repository commits the new version into the folder that already holds its history.', 'why');
+    var makerWarn = text('p', '', 'why warn');
+    makerWarn.hidden = true;
+
+    // The listener is attached further down, once the approve button it relabels
+    // exists. A var declaration would hoist into scope here, but a handler that
+    // reads a variable declared fifty lines later only works because nobody
+    // clicks during those fifty lines, which is not a reason.
+    //
+    // No backticks in this file below the template literal that opens it: one
+    // ends the template early and the syntax error is reported pages away from
+    // the cause. The maker build system has the same rule written down, and this
+    // is the second time it has been broken by the person who wrote it.
+    function onPickerChange() {
+      var chosen = PUBLISHED.filter(function (t) { return t.id === picker.value; })[0];
+      // The approver decides, but replacing somebody else's tool with this
+      // maker's file should never happen by accident.
+      if (chosen && chosen.maker !== item.maker) {
+        makerWarn.textContent = 'That tool was submitted by ' + chosen.maker + ', and this one by ' + item.maker + '.';
+        makerWarn.hidden = false;
+      } else {
+        makerWarn.hidden = true;
+      }
+      approve.textContent = picker.value === '' ? 'Approve and publish' : 'Approve and replace';
+    }
+
+    replaceBox.appendChild(replaceLabel);
+    replaceBox.appendChild(picker);
+    replaceBox.appendChild(replaceWhy);
+    replaceBox.appendChild(makerWarn);
+    el.appendChild(replaceBox);
+
     var row = document.createElement('div');
     row.className = 'row';
 
@@ -286,6 +349,8 @@ export function page(googleClientId: string): string {
     var approve = document.createElement('button');
     approve.textContent = 'Approve and publish';
     approve.className = 'approve';
+
+    picker.addEventListener('change', onPickerChange);
 
     var denyToggle = document.createElement('button');
     denyToggle.textContent = 'Deny…';
@@ -343,14 +408,20 @@ export function page(googleClientId: string): string {
           id: item.id,
           note: note.value,
           collections: chosen,
-          hidden: hidden.checked
+          hidden: hidden.checked,
+          replaces: picker.value
         })
       })
         .then(function (body) {
           var where = (body.announced || []).length
             ? ' Catalogue and record updating: ' + body.announced.join(', ') + '.'
             : ' Nothing was dispatched — it is live but not yet listed or recorded.';
-          say('Published ' + (body.published && body.published.title || item.id) + '.' + where);
+          // Replacing and publishing are different things to have just done, and
+          // the difference matters: one of them overwrote something.
+          var what = body.replaced
+            ? 'Replaced ' + body.replaced.title + ' with ' + (body.published && body.published.title || item.id) + ', at the same address.'
+            : 'Published ' + (body.published && body.published.title || item.id) + '.';
+          say(what + where);
           load();
         })
         .catch(function (e) { busy(false); say(e.message, true); });
@@ -379,9 +450,10 @@ export function page(googleClientId: string): string {
     // tick-boxes until the collections are known, and drawing the queue first
     // would show every card with an empty list for as long as the second request
     // takes.
-    return Promise.all([api('/queue'), api('/collections')]).then(function (answers) {
+    return Promise.all([api('/queue'), api('/collections'), api('/published')]).then(function (answers) {
       var body = answers[0];
       COLLECTIONS = answers[1].collections || [];
+      PUBLISHED = answers[2].published || [];
 
       whoEl.textContent = 'Signed in as ' + body.approver.name;
       signinEl.style.display = 'none';

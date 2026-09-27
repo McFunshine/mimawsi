@@ -140,6 +140,130 @@ export function describeStoragePort(name: string, create: () => Promise<StorageP
       expect(tool.curation).toEqual({ collections: [], hidden: false });
     });
 
+    /**
+     * Replacing a tool. The point of it is that the URL does not change, so these
+     * assert on the id the bytes end up under rather than on a return value alone:
+     * a replacement published to a new id would still "work" and would still have
+     * broken every link anybody had been given.
+     */
+    describe('replacing a published tool', () => {
+      async function publishOne(storage: StoragePort, title: string, body: string) {
+        const submitted = await storage.submit({
+          bytes: bytesOf(body),
+          metadata: meta(title),
+          maker,
+        });
+        await storage.setState(submitted.id, 'approved');
+        return storage.publish(submitted.id, bytesOf(body));
+      }
+
+      it('serves the new bytes under the superseded tool id, not the new submission id', async () => {
+        const storage = await create();
+        const original = await publishOne(storage, 'Jigsaw', '<h1>v1</h1>');
+
+        const remade = await storage.submit({
+          bytes: bytesOf('<h1>v2</h1>'),
+          metadata: meta('Jigsaw'),
+          maker,
+        });
+        await storage.setState(remade.id, 'approved');
+        const tool = await storage.publish(
+          remade.id,
+          bytesOf('<h1>v2</h1>'),
+          undefined,
+          original.id,
+        );
+
+        expect(tool.id).toEqual(original.id);
+        expect(tool.id).not.toEqual(remade.id);
+        await expect(storage.readPublished(original.id)).resolves.toEqual(bytesOf('<h1>v2</h1>'));
+      });
+
+      it('leaves one tool in the catalogue, not two', async () => {
+        const storage = await create();
+        const original = await publishOne(storage, 'Jigsaw', '<h1>v1</h1>');
+
+        const remade = await storage.submit({
+          bytes: bytesOf('<h1>v2</h1>'),
+          metadata: meta('Jigsaw remade'),
+          maker,
+        });
+        await storage.setState(remade.id, 'approved');
+        await storage.publish(remade.id, bytesOf('<h1>v2</h1>'), undefined, original.id);
+
+        const published = await storage.listPublished();
+        expect(published).toHaveLength(1);
+        // The entry is the new version: new title, new hash, same id.
+        expect(published[0]?.id).toEqual(original.id);
+        expect(published[0]?.metadata.title).toBe('Jigsaw remade');
+        expect(published[0]?.sha256).toBe(remade.sha256);
+      });
+
+      it('keeps the superseded submission record exactly as it was', async () => {
+        const storage = await create();
+        const first = await storage.submit({
+          bytes: bytesOf('<h1>v1</h1>'),
+          metadata: meta('Jigsaw'),
+          maker,
+        });
+        await storage.setState(first.id, 'approved');
+        const original = await storage.publish(first.id, bytesOf('<h1>v1</h1>'));
+
+        const remade = await storage.submit({
+          bytes: bytesOf('<h1>v2</h1>'),
+          metadata: meta('Jigsaw'),
+          maker,
+        });
+        await storage.setState(remade.id, 'approved');
+        await storage.publish(remade.id, bytesOf('<h1>v2</h1>'), undefined, original.id);
+
+        // Two submissions, one published tool. That is the truth of what happened
+        // and the record should not pretend the first never arrived.
+        await expect(storage.getSubmission(first.id)).resolves.toMatchObject({
+          state: 'approved',
+        });
+        expect(await storage.listSubmissions('approved')).toHaveLength(2);
+      });
+
+      it('carries the curation it was replaced with', async () => {
+        const storage = await create();
+        const original = await publishOne(storage, 'Jigsaw', '<h1>v1</h1>');
+
+        const remade = await storage.submit({
+          bytes: bytesOf('<h1>v2</h1>'),
+          metadata: meta('Jigsaw'),
+          maker,
+        });
+        await storage.setState(remade.id, 'approved');
+        const tool = await storage.publish(
+          remade.id,
+          bytesOf('<h1>v2</h1>'),
+          { collections: ['dina'], hidden: true },
+          original.id,
+        );
+
+        expect(tool.curation).toEqual({ collections: ['dina'], hidden: true });
+      });
+
+      it('refuses to replace a tool that was never published, and publishes nothing', async () => {
+        const storage = await create();
+        const remade = await storage.submit({
+          bytes: bytesOf('<h1>v2</h1>'),
+          metadata: meta('Jigsaw'),
+          maker,
+        });
+        await storage.setState(remade.id, 'approved');
+
+        await expect(
+          storage.publish(remade.id, bytesOf('<h1>v2</h1>'), undefined, {
+            value: 'never-published',
+          }),
+        ).rejects.toThrow(NotFoundError);
+        // The "and not" half: no tool appeared under either id.
+        expect(await storage.listPublished()).toEqual([]);
+      });
+    });
+
     it('does not publish a submission that was never approved', async () => {
       const storage = await create();
       const submitted = await storage.submit({

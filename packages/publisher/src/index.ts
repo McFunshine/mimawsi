@@ -41,6 +41,7 @@ export async function publishSubmission(
   id: SubmissionId,
   targets: PublishTargets = {},
   curation?: Curation,
+  replaces?: SubmissionId,
 ): Promise<Published> {
   const raw = await deps.storage.readSubmittedBytes(id);
   const withPolicy = new TextEncoder().encode(injectCsp(new TextDecoder().decode(raw)));
@@ -48,14 +49,23 @@ export async function publishSubmission(
   // Recorded before the bytes are served. If this throws, nothing is reachable
   // and the submission stays as it was; the other order would leave a file
   // published that the store has no record of.
-  const tool = await deps.storage.publish(id, withPolicy, curation);
+  const tool = await deps.storage.publish(id, withPolicy, curation, replaces);
 
+  /*
+    Every key below comes from `tool.id`, not from `id`.
+
+    They are the same thing for an ordinary publish and deliberately different for
+    a replacement, which serves its bytes under the tool it supersedes. Taking the
+    id from the returned tool means one expression is right in both cases; using
+    `id` here would upload a replacement to a brand-new URL, leave the old one
+    serving the old file, and invalidate a path nobody requests.
+  */
   if (targets.siteBucket) {
     const s3 = deps.s3 ?? new S3Client({});
     await s3.send(
       new PutObjectCommand({
         Bucket: targets.siteBucket,
-        Key: `tools/${id.value}.html`,
+        Key: `tools/${tool.id.value}.html`,
         Body: withPolicy,
         ContentType: 'text/html; charset=utf-8',
       }),
@@ -69,8 +79,8 @@ export async function publishSubmission(
         new CreateInvalidationCommand({
           DistributionId: targets.runnerDistribution,
           InvalidationBatch: {
-            CallerReference: `publish-${id.value}-${Date.now()}`,
-            Paths: { Quantity: 1, Items: [`/${id.value}.html`] },
+            CallerReference: `publish-${tool.id.value}-${Date.now()}`,
+            Paths: { Quantity: 1, Items: [`/${tool.id.value}.html`] },
           },
         }),
       );
