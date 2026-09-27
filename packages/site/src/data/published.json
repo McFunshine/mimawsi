@@ -178,7 +178,9 @@
       "tags": []
     },
     "curation": {
-      "collections": ["dina"],
+      "collections": [
+        "dina"
+      ],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -195,7 +197,9 @@
       "tags": []
     },
     "curation": {
-      "collections": ["dina"],
+      "collections": [
+        "dina"
+      ],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -207,17 +211,19 @@
       "value": "418c6ced-5888-41e9-a18c-ca59505bfd26"
     },
     "metadata": {
-      "title": "MSP Crossword",
-      "description": "it's a crossword",
+      "title": "Manic Street Preachers Crossword",
+      "description": "don't get cross with words",
       "tags": []
     },
     "curation": {
-      "collections": ["dina"],
+      "collections": [
+        "dina"
+      ],
       "hidden": true
     },
     "maker": "108056334774193947679",
-    "sha256": "a425b551ac2028181bbe07c14c98c57f2f058885e207a581219c111a8fa086dc",
-    "sizeBytes": 11027
+    "sha256": "c9494276082c62ceab28212f6404aa65b85c6b7dbb20951e7cf88973306725a6",
+    "sizeBytes": 12926
   },
   {
     "id": {
@@ -229,7 +235,9 @@
       "tags": []
     },
     "curation": {
-      "collections": ["dina"],
+      "collections": [
+        "dina"
+      ],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -246,7 +254,9 @@
       "tags": []
     },
     "curation": {
-      "collections": ["dina"],
+      "collections": [
+        "dina"
+      ],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -263,7 +273,9 @@
       "tags": []
     },
     "curation": {
-      "collections": ["dina"],
+      "collections": [
+        "dina"
+      ],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -280,7 +292,9 @@
       "tags": []
     },
     "curation": {
-      "collections": ["dina"],
+      "collections": [
+        "dina"
+      ],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -297,7 +311,9 @@
       "tags": []
     },
     "curation": {
-      "collections": ["dina"],
+      "collections": [
+        "dina"
+      ],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -314,7 +330,9 @@
       "tags": []
     },
     "curation": {
-      "collections": ["dina"],
+      "collections": [
+        "dina"
+      ],
       "hidden": true
     },
     "maker": "108056334774193947679",
@@ -331,7 +349,9 @@
       "tags": []
     },
     "curation": {
-      "collections": ["dina"],
+      "collections": [
+        "dina"
+      ],
       "hidden": true
     },
     "maker": "108056334774193947679",
