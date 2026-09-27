@@ -262,5 +262,24 @@
     "maker": "108056334774193947679",
     "sha256": "028d560854ab1b22eea91e8335d5756679e942809d757a79fded77cd3a5af5b5",
     "sizeBytes": 15716
+  },
+  {
+    "id": {
+      "value": "3fdc5487-9a2e-4e5b-98bd-2c3af4a1ddd0"
+    },
+    "metadata": {
+      "title": "MSP Fruit Machine",
+      "description": "for all our MSP and gambling addicts out there!",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "9a7292df47dffed390f7651c1929815752add44782aeb9f83175e0affc275320",
+    "sizeBytes": 58183
   }
 ]
