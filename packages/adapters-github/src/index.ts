@@ -1,4 +1,4 @@
-import type { Tool } from '@mimawsi/domain';
+import type { Collection, Tool } from '@mimawsi/domain';
 
 /**
  * Telling the two repositories that a tool was published.
@@ -48,6 +48,15 @@ export interface PublishedNotice {
   readonly note?: string | undefined;
   /** Who approved it, for the record. Display name, not an address. */
   readonly approvedBy: string;
+  /**
+   * The collections this tool was put in, in full.
+   *
+   * The slugs alone would not be enough: the site keeps its own committed copy of
+   * the registry, and a collection created on the approval page an hour ago is not
+   * in it. Sending the definitions lets one commit add the tool and the collection
+   * together.
+   */
+  readonly collections?: readonly Collection[];
 }
 
 /**
@@ -104,6 +113,28 @@ export function githubDispatcher(deps: DispatcherDeps): Dispatcher {
         maker: notice.tool.maker,
         approvedBy: notice.approvedBy,
         note: notice.note ?? '',
+        // The approver's curation, so the catalogue entry this builds matches the
+        // record the store now holds. Without it the dispatch path would write an
+        // entry with no collections, and the tool would be published, recorded as
+        // curated, and missing from the page it was assigned to until somebody ran
+        // a wholesale rebuild.
+        //
+        // One nested key rather than two flat ones, and not a matter of taste:
+        // client_payload allows ten top-level keys and this is the tenth. Anything
+        // added from here has to go inside an existing one.
+        curation: {
+          collections: notice.tool.curation?.collections ?? [],
+          hidden: notice.tool.curation?.hidden === true,
+          // The full definition of each collection this tool is in, so the site's
+          // committed snapshot can be written by the same commit that adds the
+          // tool. Without it a collection created on the approval page would exist
+          // in the store, be recorded on the tool, and have no page.
+          //
+          // A collection therefore reaches the site with its first published
+          // member. One with no members has nothing to show and no page, which is
+          // the right answer rather than a missing case.
+          defined: notice.collections ?? [],
+        },
       };
 
       const accepted: string[] = [];

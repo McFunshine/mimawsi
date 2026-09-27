@@ -1,7 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
+import { NO_CURATION } from '@mimawsi/domain';
 import type {
+  Collection,
+  Curation,
   Submission,
   SubmissionId,
   SubmissionState,
@@ -30,9 +33,10 @@ import type { StoragePort } from '@mimawsi/ports';
 interface Persisted {
   submissions: Submission[];
   published: Tool[];
+  collections?: Collection[];
 }
 
-const EMPTY: Persisted = { submissions: [], published: [] };
+const EMPTY: Persisted = { submissions: [], published: [], collections: [] };
 
 /**
  * Ids become path segments, so they are checked before they are interpolated. A
@@ -156,7 +160,11 @@ export class LocalDirectoryStorage implements StoragePort {
     });
   }
 
-  async publish(id: SubmissionId, publishedBytes: Uint8Array): Promise<Tool> {
+  async publish(
+    id: SubmissionId,
+    publishedBytes: Uint8Array,
+    curation: Curation = NO_CURATION,
+  ): Promise<Tool> {
     return this.mutate(async () => {
       const state = await this.read();
       const submission = state.submissions.find((s) => s.id.value === id.value);
@@ -173,12 +181,31 @@ export class LocalDirectoryStorage implements StoragePort {
         maker: submission.maker.value,
         sha256: submission.sha256,
         sizeBytes: publishedBytes.byteLength,
+        curation,
       };
 
       await this.writeFileAt(`published/${id.value}.html`, publishedBytes);
       state.published = [...state.published.filter((t) => t.id.value !== id.value), tool];
       await this.write(state);
       return tool;
+    });
+  }
+
+  async listCollections(): Promise<readonly Collection[]> {
+    // `?? []` because a store written before collections existed has no such key.
+    return (await this.read()).collections ?? [];
+  }
+
+  async createCollection(collection: Collection): Promise<Collection> {
+    return this.mutate(async () => {
+      const state = await this.read();
+      const existing = state.collections ?? [];
+      if (existing.some((c) => c.slug === collection.slug)) {
+        throw new Error(`collection ${collection.slug} already exists`);
+      }
+      state.collections = [...existing, collection];
+      await this.write(state);
+      return collection;
     });
   }
 

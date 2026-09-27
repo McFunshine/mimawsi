@@ -1,7 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import ToolCard from '../components/ToolCard.astro';
-import { publishedTools } from '../data/tools';
+import { catalogueTools, listedCollections } from '../data/collections';
 ---
 <Base title="mimawsi — Made It, Might As Well Share It">
   <h1>mimawsi</h1>
@@ -16,8 +16,37 @@ import { publishedTools } from '../data/tools';
     <span class="share-note">Made something? Put it here.</span>
   </p>
 
+  {
+    /*
+      Listed collections only. An unlisted one is absent from here by construction
+      rather than by an exception somewhere — that is what `listed` is for, and the
+      whole section disappears when nothing is listed rather than leaving an empty
+      heading.
+    */
+    listedCollections.length > 0 && (
+      <>
+        <h2 class="section">Collections</h2>
+        <ul class="collections">
+          {listedCollections.map((collection) => (
+            <li>
+              <a href={`/${collection.slug}`}>{collection.title}</a>
+              <span class="blurb">{collection.blurb}</span>
+            </li>
+          ))}
+        </ul>
+      </>
+    )
+  }
+
   <h2 class="section">Tools</h2>
-  {publishedTools.map((tool) => <ToolCard tool={tool} />)}
+  {
+    /*
+      catalogueTools, not publishedTools: a tool an approver marked hidden is left
+      out of this listing and out of any search built on it. It stays published —
+      its run page and download still work, and a collection page still shows it.
+    */
+    catalogueTools.map((tool) => <ToolCard tool={tool} />)
+  }
 </Base>
 
 <style>
@@ -54,4 +83,9 @@ import { publishedTools } from '../data/tools';
     font-size: .8rem; text-transform: uppercase; letter-spacing: .08em;
     color: var(--dim); margin: 0 0 .8rem; font-weight: 600;
   }
+
+  .collections { list-style: none; padding: 0; margin: 0 0 2.5rem; }
+  .collections li { margin-bottom: .6rem; }
+  .collections a { font-weight: 600; }
+  .blurb { display: block; color: var(--dim); font-size: .9rem; }
 </style>

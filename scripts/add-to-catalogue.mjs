@@ -16,6 +16,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const INDEX = fileURLToPath(new URL('../packages/site/src/data/published.json', import.meta.url));
+const COLLECTIONS = fileURLToPath(
+  new URL('../packages/site/src/data/collections.json', import.meta.url),
+);
 
 const payload = JSON.parse(readFileSync(process.argv[2] ?? '/dev/stdin', 'utf8'));
 
@@ -40,12 +43,35 @@ if (!Array.isArray(published)) {
   process.exit(1);
 }
 
+/**
+ * Collection slugs, constrained the same way the id is: this arrives from a
+ * dispatch and is written into a file the site builds routes from. An unknown or
+ * malformed slug would put the tool on no page at all while the record claimed
+ * otherwise, so anything that is not a plain lowercase slug is dropped.
+ *
+ * Not checked against the collection registry here on purpose — this script runs in
+ * CI from a checkout that may be older or newer than the Lambda that sent the
+ * payload, and the site's own build is what refuses a slug with no page.
+ */
+const SLUG = /^[a-z][a-z0-9_]{0,63}$/;
+
+const slugs = (value) =>
+  Array.isArray(value)
+    ? [...new Set(value.filter((s) => typeof s === 'string' && SLUG.test(s)))]
+    : [];
+
 const entry = {
   id: { value: payload.id },
   metadata: {
     title: payload.title,
     description: typeof payload.description === 'string' ? payload.description : '',
     tags: [],
+  },
+  curation: {
+    collections: slugs(payload.curation?.collections),
+    // Strictly `=== true`: an absent field must mean listed. Anything looser would
+    // let a missing value read as truthy one day and empty the front page.
+    hidden: payload.curation?.hidden === true,
   },
   maker: typeof payload.maker === 'string' && payload.maker !== '' ? payload.maker : 'operator',
   // The submitted hash, matching what the store records. See the note in
@@ -58,12 +84,63 @@ const entry = {
 const existing = published.findIndex((tool) => tool?.id?.value === payload.id);
 if (existing === -1) {
   published.push(entry);
-  console.log(`added ${payload.id} (${payload.title})`);
 } else {
   // Replaced rather than skipped: a republish of the same id is a real case, and
   // leaving the old title and size behind would describe the previous file.
   published[existing] = entry;
-  console.log(`updated ${payload.id} (${payload.title})`);
 }
 
+/*
+ * The collections this tool was put in, added to the site's own copy of the
+ * registry if they are not already there.
+ *
+ * Collections are created on the approval page and live in the store; the site
+ * cannot read the store at build time, so they arrive here the same way tools do.
+ * A collection therefore appears on the site with its first published member,
+ * which is also when it first has anything to show.
+ *
+ * Existing entries are left alone. `listed` and `pinned` are edited in this file
+ * by hand — putting a collection on the front page is a commit, not a checkbox on
+ * the approval page — and an upsert from a dispatch would undo that.
+ *
+ * Both files are read and computed BEFORE either is written. They were not, once,
+ * and a crash in this section left the tool added to the catalogue and its
+ * collection missing — published, curated, and with no page. Writes go last.
+ */
+const defined = Array.isArray(payload.curation?.defined) ? payload.curation.defined : [];
+const registry = JSON.parse(readFileSync(COLLECTIONS, 'utf8'));
+if (!Array.isArray(registry)) {
+  console.error('collections.json is not an array; refusing to write');
+  process.exit(1);
+}
+
+let addedCollections = 0;
+for (const collection of defined) {
+  if (!SLUG.test(collection?.slug ?? '')) {
+    console.error(
+      `skipping a collection with an unusable slug: ${JSON.stringify(collection?.slug)}`,
+    );
+    continue;
+  }
+  if (registry.some((known) => known?.slug === collection.slug)) {
+    continue;
+  }
+  registry.push({
+    slug: collection.slug,
+    title: typeof collection.title === 'string' ? collection.title : collection.slug,
+    blurb: typeof collection.blurb === 'string' ? collection.blurb : '',
+    listed: collection.listed === true,
+  });
+  addedCollections += 1;
+}
+
+// Both writes, after everything that could throw.
 writeFileSync(INDEX, `${JSON.stringify(published, null, 2)}\n`, 'utf8');
+if (addedCollections > 0) {
+  writeFileSync(COLLECTIONS, `${JSON.stringify(registry, null, 2)}\n`, 'utf8');
+}
+
+console.log(
+  `${existing === -1 ? 'added' : 'updated'} ${payload.id} (${payload.title})` +
+    (addedCollections > 0 ? `, and ${addedCollections} new collection(s)` : ''),
+);

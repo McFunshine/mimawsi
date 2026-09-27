@@ -11,7 +11,8 @@
  * courtesy: anyone can call these routes directly with curl, so the check here is
  * the entire security of the feature.
  */
-import type { Maker, Submission, SubmissionId } from '@mimawsi/domain';
+import { collectionSlugProblem, knownCollectionSlugs } from '@mimawsi/domain';
+import type { Collection, Curation, Maker, Submission, SubmissionId } from '@mimawsi/domain';
 import type { NotifierPort, ReviewStorage, StoragePort } from '@mimawsi/ports';
 import { NotFoundError } from '@mimawsi/ports';
 import type { PublishTargets } from '@mimawsi/publisher';
@@ -36,7 +37,8 @@ export interface AdminResponse {
 }
 
 export interface AdminDeps {
-  readonly storage: Pick<StoragePort, 'publish'> & ReviewStorage;
+  readonly storage: Pick<StoragePort, 'publish' | 'listCollections' | 'createCollection'> &
+    ReviewStorage;
   /** Resolves the caller from a bearer token. Google only — no operator token here. */
   readonly identify: (token: string | null) => Promise<Maker | null>;
   /** Server-side allowlist check. Fails closed on every error. */
@@ -198,6 +200,50 @@ export async function route(deps: AdminDeps, event: AdminEvent): Promise<AdminRe
       };
     }
 
+    // What the page draws its tick-boxes from. Fetched rather than baked into the
+    // HTML: collections are created at runtime now, so a page rendered an hour ago
+    // would offer a stale list.
+    if (path === '/collections' && method === 'GET') {
+      return json(200, { collections: await deps.storage.listCollections() });
+    }
+
+    if (path === '/collections' && method === 'POST') {
+      const body = bodyOf(event);
+      const slug = typeof body.slug === 'string' ? body.slug.trim() : '';
+      const title = typeof body.title === 'string' ? body.title.trim() : '';
+      const blurb = typeof body.blurb === 'string' ? body.blurb.trim() : '';
+
+      // Refused here, not merely discouraged in the page. A slug becomes a URL
+      // path segment and a directory name, and this endpoint is reachable with
+      // curl whatever the page does.
+      const problem = collectionSlugProblem(slug);
+      if (problem !== null) {
+        return json(400, { error: problem });
+      }
+      if (title === '') {
+        return json(400, { error: 'a title is required' });
+      }
+
+      const existing = await deps.storage.listCollections();
+      if (existing.some((c) => c.slug === slug)) {
+        // Not a 500: two approvers inventing the same name is an ordinary race,
+        // and the answer is that it already exists, not that something broke.
+        return json(409, { error: `collection ${slug} already exists` });
+      }
+
+      const collection: Collection = {
+        slug,
+        title,
+        blurb,
+        // Every new collection starts unlisted. Listing one puts it on the front
+        // page of the site, which is a decision to take deliberately in a commit
+        // rather than a checkbox to tick while approving something else.
+        listed: false,
+      };
+      await deps.storage.createCollection(collection);
+      return json(201, { collection });
+    }
+
     if (path === '/approve' && method === 'POST') {
       const body = bodyOf(event);
       const id = asId(body.id);
@@ -214,11 +260,32 @@ export async function route(deps: AdminDeps, event: AdminEvent): Promise<AdminRe
 
       const note = typeof body.note === 'string' ? body.note.trim() : '';
 
+      /*
+        Where the tool appears, as the approver chose it.
+
+        The slugs are filtered against the domain registry rather than trusted:
+        this is a request body, and an unknown slug would assign the tool to a
+        collection that has no page — a tool nobody can find, reported as
+        published. `knownCollectionSlugs` drops the unknown ones rather than
+        refusing the approval, because the tick-boxes come from the same registry,
+        so a mismatch means the page and the Lambda are on different versions and
+        publishing into the collections that do exist beats failing a review that
+        has already been done.
+      */
+      const known = await deps.storage.listCollections();
+      const curation: Curation = {
+        collections: knownCollectionSlugs(
+          Array.isArray(body.collections) ? body.collections : [],
+          known,
+        ),
+        hidden: body.hidden === true,
+      };
+
       await deps.storage.setState(id, 'approved');
       // The same publishSubmission the CLI calls. Not a second implementation —
       // that divergence is what put a tool in the catalogue whose file was never
       // uploaded, and it is why the publisher was extracted.
-      const { tool } = await publishSubmission(deps, id, deps.targets);
+      const { tool } = await publishSubmission(deps, id, deps.targets, curation);
 
       // After the bytes are live, and never allowed to fail the publish. The tool
       // is reachable at this point; reporting the approval as failed because a
@@ -230,6 +297,9 @@ export async function route(deps: AdminDeps, event: AdminEvent): Promise<AdminRe
         slug: slugFor(tool),
         note,
         approvedBy: maker.displayName,
+        // In full, not as slugs: the site keeps its own committed copy of the
+        // registry, and a collection created here an hour ago is not in it yet.
+        collections: known.filter((c) => curation.collections.includes(c.slug)),
       });
 
       return json(200, {

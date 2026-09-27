@@ -1,4 +1,6 @@
 import type {
+  Collection,
+  Curation,
   Maker,
   ScanResult,
   Submission,
@@ -81,6 +83,23 @@ export interface ReviewStorage {
   readSubmittedBytes(id: SubmissionId): Promise<Uint8Array>;
 }
 
+/**
+ * The collections a tool may be approved into.
+ *
+ * In the store rather than in code, because they are created from the approval
+ * page at runtime. The site keeps a committed snapshot in `collections.json` — the
+ * same arrangement `published.json` already has, and for the same reason: a static
+ * build cannot read S3, so what the store holds reaches the site as a commit.
+ */
+export interface CollectionStore {
+  listCollections(): Promise<readonly Collection[]>;
+  /**
+   * Adds a collection. Throws if the slug is already taken — a silent overwrite
+   * would rename somebody else's page and move every tool in it.
+   */
+  createCollection(collection: Collection): Promise<Collection>;
+}
+
 /** What the catalogue needs. Read-only on purpose — it must never be able to mutate. */
 export interface CatalogueReader {
   listPublished(): Promise<readonly Tool[]>;
@@ -88,9 +107,23 @@ export interface CatalogueReader {
 }
 
 /** Bytes and submission records. Becomes S3 + DynamoDB at task-3.5. */
-export interface StoragePort extends SubmissionWriter, ReviewStorage, CatalogueReader {
-  /** Moves an approved submission's bytes into the published set, policy already injected. */
-  publish(id: SubmissionId, publishedBytes: Uint8Array): Promise<Tool>;
+export interface StoragePort
+  extends SubmissionWriter,
+    ReviewStorage,
+    CatalogueReader,
+    CollectionStore {
+  /**
+   * Moves an approved submission's bytes into the published set, policy already
+   * injected.
+   *
+   * `curation` is the approver's choice of collections and whether the tool is
+   * hidden, and it is recorded here rather than only in the dispatch that updates
+   * the catalogue index. That matters: `npm run publish` rebuilds the index
+   * wholesale from the store, so curation kept only in the dispatch payload would
+   * be erased by the next rebuild. Omitted means `NO_CURATION` — in no collection,
+   * listed like anything else.
+   */
+  publish(id: SubmissionId, publishedBytes: Uint8Array, curation?: Curation): Promise<Tool>;
 }
 
 /** Who is asking. Becomes Google OAuth at task-3.4. */

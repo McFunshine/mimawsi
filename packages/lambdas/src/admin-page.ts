@@ -38,6 +38,14 @@ export function page(googleClientId: string): string {
   .deny { border-color: var(--bad); color: var(--bad); }
   textarea { font: inherit; width: 100%; min-height: 5rem; margin: .5rem 0; padding: .5rem; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: inherit; }
   .notelabel { display: block; margin-top: .75rem; font-size: .9rem; opacity: .8; }
+  .curation { border: 1px solid var(--line); border-radius: 6px; padding: .6rem .8rem; margin-top: .75rem; }
+  .curation legend { font-size: .9rem; opacity: .8; padding-inline: .3rem; }
+  .curation label { display: block; font-size: .95rem; margin: .2rem 0; }
+  .curation .why { font-size: .85rem; opacity: .7; margin: .35rem 0 0; }
+  .linky { border: 0; padding: .2rem 0; text-decoration: underline; font-size: .9rem; }
+  .addbox { display: none; margin-top: .5rem; gap: .4rem; flex-wrap: wrap; align-items: center; }
+  .addbox.open { display: flex; }
+  .addbox input { font: inherit; padding: .35rem .5rem; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: inherit; }
   textarea.note { min-height: 3.5rem; }
   .denybox { display: none; margin-top: .75rem; border-top: 1px dashed var(--line); padding-top: .75rem; }
   .denybox.open { display: block; }
@@ -71,6 +79,13 @@ export function page(googleClientId: string): string {
 <script>
 (function () {
   var CLIENT_ID = ${escapeJs(googleClientId)};
+  // Filled from GET /collections once signed in, and refilled whenever one is
+  // created. Not baked into this HTML: collections are made at runtime, so a page
+  // rendered an hour ago would offer a stale list.
+  var COLLECTIONS = [];
+  // One redraw function per open card, so creating a collection updates the
+  // tick-boxes on all of them at once.
+  var redraws = [];
   var token = null;
   var statusEl = document.getElementById('status');
   var queueEl = document.getElementById('queue');
@@ -134,6 +149,115 @@ export function page(googleClientId: string): string {
     note.placeholder = 'Read it through; it does what it says and touches nothing else.';
     el.appendChild(noteLabel);
     el.appendChild(note);
+
+    // Where this tool appears. Two separate decisions, deliberately: a collection
+    // says where it can be found, hidden says it is not advertised anywhere else.
+    // A tool may be in several collections, or none.
+    var curation = document.createElement('fieldset');
+    curation.className = 'curation';
+    var legend = document.createElement('legend');
+    legend.textContent = 'Where it appears';
+    curation.appendChild(legend);
+
+    // Redrawn in place when a collection is created, so a new one can be ticked
+    // for the tool being approved right now without reloading and losing the note.
+    var boxes = [];
+    var list = document.createElement('div');
+    curation.appendChild(list);
+
+    function drawCollections() {
+      var ticked = {};
+      boxes.forEach(function (b) { if (b.checked) { ticked[b.value] = true; } });
+      boxes = [];
+      list.textContent = '';
+      if (COLLECTIONS.length === 0) {
+        list.appendChild(text('p', 'No collections yet.', 'why'));
+      }
+      COLLECTIONS.forEach(function (c) {
+        var label = document.createElement('label');
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = c.slug;
+        cb.checked = ticked[c.slug] === true;
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(
+          ' ' + c.title + (c.listed ? '' : ' (unlisted page)')
+        ));
+        list.appendChild(label);
+        boxes.push(cb);
+      });
+    }
+    drawCollections();
+    redraws.push(drawCollections);
+
+    var hiddenLabel = document.createElement('label');
+    var hidden = document.createElement('input');
+    hidden.type = 'checkbox';
+    hiddenLabel.appendChild(hidden);
+    hiddenLabel.appendChild(document.createTextNode(' Hide from the front page and search'));
+    curation.appendChild(hiddenLabel);
+
+    // Said plainly on the page, because an approver ticking "hide" could otherwise
+    // reasonably believe it means private. It does not, and the difference matters
+    // to whoever submitted the tool.
+    var why = text('p', 'Hidden still publishes: the tool keeps its own page and download, and anyone with the link can use it. It is only left out of the listing and of search.', 'why');
+    curation.appendChild(why);
+
+    // Making a collection without leaving the approval. A new one always starts
+    // unlisted — putting it on the front page of the site is a decision to take
+    // deliberately, not a box to tick while approving something else.
+    var addToggle = document.createElement('button');
+    addToggle.type = 'button';
+    addToggle.className = 'linky';
+    addToggle.textContent = 'New collection…';
+
+    var addBox = document.createElement('div');
+    addBox.className = 'addbox';
+    var slugInput = document.createElement('input');
+    slugInput.type = 'text';
+    slugInput.placeholder = 'slug, e.g. britpop_quizzes';
+    slugInput.setAttribute('aria-label', 'Collection slug');
+    var titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.placeholder = 'Title, e.g. Britpop quizzes';
+    titleInput.setAttribute('aria-label', 'Collection title');
+    var create = document.createElement('button');
+    create.type = 'button';
+    create.textContent = 'Create';
+    var addNote = text('p', 'Lowercase letters, digits and underscores, starting with a letter. Created unlisted.', 'why');
+    addBox.appendChild(slugInput);
+    addBox.appendChild(titleInput);
+    addBox.appendChild(create);
+    addBox.appendChild(addNote);
+
+    addToggle.addEventListener('click', function () {
+      addBox.classList.toggle('open');
+      if (addBox.classList.contains('open')) { slugInput.focus(); }
+    });
+
+    create.addEventListener('click', function () {
+      create.disabled = true;
+      api('/collections', {
+        method: 'POST',
+        body: JSON.stringify({ slug: slugInput.value.trim(), title: titleInput.value.trim() })
+      })
+        .then(function (body) {
+          COLLECTIONS.push(body.collection);
+          // Every open card redraws, so the new collection is tickable on all of
+          // them rather than only on the one it was typed into.
+          redraws.forEach(function (fn) { fn(); });
+          slugInput.value = '';
+          titleInput.value = '';
+          addBox.classList.remove('open');
+          say('Created ' + body.collection.title + '. It is unlisted until the site says otherwise.');
+        })
+        .catch(function (e) { say(e.message, true); })
+        .then(function () { create.disabled = false; });
+    });
+
+    curation.appendChild(addToggle);
+    curation.appendChild(addBox);
+    el.appendChild(curation);
 
     var row = document.createElement('div');
     row.className = 'row';
@@ -212,7 +336,16 @@ export function page(googleClientId: string): string {
     approve.addEventListener('click', function () {
       busy(true);
       say('Publishing ' + (item.title || item.id) + '…');
-      api('/approve', { method: 'POST', body: JSON.stringify({ id: item.id, note: note.value }) })
+      var chosen = boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
+      api('/approve', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: item.id,
+          note: note.value,
+          collections: chosen,
+          hidden: hidden.checked
+        })
+      })
         .then(function (body) {
           var where = (body.announced || []).length
             ? ' Catalogue and record updating: ' + body.announced.join(', ') + '.'
@@ -242,10 +375,20 @@ export function page(googleClientId: string): string {
   }
 
   function load() {
-    return api('/queue').then(function (body) {
+    // Both, before anything is drawn: a card cannot render its collection
+    // tick-boxes until the collections are known, and drawing the queue first
+    // would show every card with an empty list for as long as the second request
+    // takes.
+    return Promise.all([api('/queue'), api('/collections')]).then(function (answers) {
+      var body = answers[0];
+      COLLECTIONS = answers[1].collections || [];
+
       whoEl.textContent = 'Signed in as ' + body.approver.name;
       signinEl.style.display = 'none';
       queueEl.replaceChildren();
+      // Cleared with the cards, and before the early return below, or a redraw
+      // from a previous load survives pointing at detached DOM.
+      redraws = [];
       // Cleared once the answer is in. Leaving "Checking the approver list…" up
       // after the list has plainly loaded reads as a step still running.
       say('');

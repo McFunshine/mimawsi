@@ -1,0 +1,77 @@
+---
+import type { Tool } from '@mimawsi/domain';
+
+import ToolCard from '../components/ToolCard.astro';
+import { resolveAll } from '../data/collections';
+import Base from '../layouts/Base.astro';
+
+/**
+ * One page component for every collection. `/dina` is this file, not a special
+ * case: collections live at the top level so the slug is literally the address.
+ *
+ * Astro prefers a static route to a dynamic one, so index.astro, share.astro and
+ * 404.astro all still win over this. That is why RESERVED_COLLECTION_SLUGS exists
+ * — a collection named `share` would not shadow the share page, it would simply
+ * never be reachable, and resolveAll refuses it rather than letting it look like
+ * it worked.
+ */
+export function getStaticPaths() {
+  // resolveAll throws on an unusable or duplicated slug, which fails the build.
+  // That is the intent: a collection that cannot be reached is a mistake to fix,
+  // not a page to ship.
+  const resolved = resolveAll();
+
+  /*
+    A curated collection naming a tool that is not published is a hole in a page
+    somebody chose the contents of, and silently dropping it is the failure worth
+    designing against. So the build refuses it.
+
+    It refuses only the *production* build, and warns under the dev server, and the
+    asymmetry is deliberate. Astro generates these pages from the working copy of
+    published.json, and the tracer rewrites that file mid-journey — so a member can
+    be legitimately published and still absent from the index for the few seconds a
+    dev server happens to rebuild in. Throwing there would turn a passing e2e suite
+    red for a reason that is not a bug. `astro build` has no such window.
+  */
+  const holes = resolved.filter(({ missing }) => missing.length > 0);
+  if (holes.length > 0) {
+    const detail = holes
+      .map(({ collection, missing }) => `${collection.slug}: ${missing.join(', ')}`)
+      .join('; ');
+    const message = `collection members are not published — ${detail}`;
+    if (import.meta.env.PROD) throw new Error(message);
+    console.warn(`[collections] ${message}`);
+  }
+
+  return resolved.map(({ collection, tools }) => ({
+    params: { collection: collection.slug },
+    props: { collection, tools },
+  }));
+}
+
+interface Props {
+  collection: import('@mimawsi/domain').Collection;
+  tools: readonly Tool[];
+}
+
+const { collection, tools } = Astro.props as Props;
+---
+<Base title={`${collection.title} — mimawsi`} noindex={!collection.listed}>
+  <h1>{collection.title}</h1>
+  <p class="lede">{collection.blurb}</p>
+
+  {
+    tools.length === 0 ? (
+      <p class="empty">Nothing here yet. Check back.</p>
+    ) : (
+      tools.map((tool) => <ToolCard tool={tool} />)
+    )
+  }
+
+  <p class="back"><a href="/">All of mimawsi</a></p>
+</Base>
+
+<style>
+  .empty { color: var(--dim); }
+  .back { margin-top: 2.5rem; font-size: .9rem; }
+</style>

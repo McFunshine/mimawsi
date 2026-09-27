@@ -67,6 +67,33 @@ wired in. Replacing a fake never edits it.
 | TC-C05 | Screenshot renders when present | AC-8 | blocked |
 | TC-C06 | A tool with no screenshot still appears | AC-9 | blocked |
 | TC-C07 | Download is byte-exact against the stored object | AC-7 | blocked |
+| TC-C08 | A collection page renders its heading, blurb, and exactly one of cards or an empty state | — | done |
+| TC-C09 | An unlisted collection is absent from the front page and asks not to be indexed | — | done |
+| TC-C10 | A collection lists exactly its members, in the curated order | — | todo |
+| TC-C11 | A listed collection is linked from the front page and stays indexable | — | todo |
+| TC-C12 | A hidden tool is absent from the front page but present on its collection page, and still runs | — | todo |
+
+TC-C08…TC-C12 have no AC because collections and curation were built without a spec
+pass, by decision on 2026-09-27. `notes/dina-plan.md` is what they trace to instead;
+if ACs are written later, fill the column in rather than renumbering.
+
+The three `todo` cases are not blocked — the product is built. They need *data* that
+does not exist yet, and writing a browser test that manufactures it would mean
+mutating the working `published.json`, which is the file the tracer already rewrites
+mid-journey. Two suites editing it is how TC-T01 was made to flake before.
+
+- TC-C10 needs a collection with more than one member, to have an order to assert.
+- TC-C11 needs a listed collection; `dina` is the only one and it is unlisted.
+- TC-C12 needs a published tool marked hidden.
+
+All three behaviours are covered at the unit level, where the catalogue is a
+fixture and nothing shared is touched: `packages/site/src/data/collections.test.ts`
+covers pinned ordering, assigned membership, hidden exclusion from `catalogueTools`,
+and a hidden tool still appearing in its collection;
+`packages/lambdas/src/admin.test.ts` covers what an approver's choice records; and
+`packages/ports/src/contracts.ts` covers curation surviving the store. Each was also
+verified against a real build on 2026-09-27 by marking a live tool hidden: the front
+page lost it, `/dina` kept it, and its run page was still generated.
 
 ## Sandbox — running a tool in the browser (`specs/catalogue/`)
 

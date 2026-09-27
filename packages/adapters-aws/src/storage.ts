@@ -1,6 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { GetObjectCommand, NoSuchKey, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { NO_CURATION } from '@mimawsi/domain';
 import type {
+  Collection,
+  Curation,
   Submission,
   SubmissionId,
   SubmissionState,
@@ -29,9 +32,10 @@ import type { StoragePort } from '@mimawsi/ports';
 interface Persisted {
   submissions: Submission[];
   published: Tool[];
+  collections?: Collection[];
 }
 
-const EMPTY: Persisted = { submissions: [], published: [] };
+const EMPTY: Persisted = { submissions: [], published: [], collections: [] };
 
 /**
  * Ids become object keys, and `readPublished(id)` is reachable from an HTTP route,
@@ -166,7 +170,11 @@ export class S3Storage implements StoragePort {
     });
   }
 
-  async publish(id: SubmissionId, publishedBytes: Uint8Array): Promise<Tool> {
+  async publish(
+    id: SubmissionId,
+    publishedBytes: Uint8Array,
+    curation: Curation = NO_CURATION,
+  ): Promise<Tool> {
     assertSafeId(id);
 
     return this.mutate(async (state) => {
@@ -187,6 +195,11 @@ export class S3Storage implements StoragePort {
         // file the maker sent rather than the one policy injection produced.
         sha256: submission.sha256,
         sizeBytes: publishedBytes.byteLength,
+        // The approver's choice, recorded in the store. Kept here and not only in
+        // the dispatch that updates the catalogue index, because `npm run publish`
+        // rebuilds that index wholesale from the store — curation held only in the
+        // dispatch payload would vanish at the next rebuild.
+        curation,
       };
 
       await this.putBytes(`published/${id.value}.html`, publishedBytes);
@@ -196,6 +209,26 @@ export class S3Storage implements StoragePort {
           published: [...state.published.filter((t) => t.id.value !== id.value), tool],
         },
         result: tool,
+      };
+    });
+  }
+
+  async listCollections(): Promise<readonly Collection[]> {
+    // `?? []` because a store written before collections existed has no such key.
+    return (await this.snapshot()).state.collections ?? [];
+  }
+
+  async createCollection(collection: Collection): Promise<Collection> {
+    return this.mutate(async (state) => {
+      const existing = state.collections ?? [];
+      // Refused rather than merged: a silent overwrite would rename somebody
+      // else's page and take every tool in it along with the name.
+      if (existing.some((c) => c.slug === collection.slug)) {
+        throw new Error(`collection ${collection.slug} already exists`);
+      }
+      return {
+        next: { ...state, collections: [...existing, collection] },
+        result: collection,
       };
     });
   }

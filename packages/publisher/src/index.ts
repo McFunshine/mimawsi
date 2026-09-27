@@ -1,6 +1,6 @@
 import { CreateInvalidationCommand, CloudFrontClient } from '@aws-sdk/client-cloudfront';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import type { SubmissionId, Tool } from '@mimawsi/domain';
+import type { Curation, SubmissionId, Tool } from '@mimawsi/domain';
 import { injectCsp } from '@mimawsi/injector';
 import type { ReviewStorage, StoragePort } from '@mimawsi/ports';
 
@@ -40,6 +40,7 @@ export async function publishSubmission(
   deps: PublishDeps,
   id: SubmissionId,
   targets: PublishTargets = {},
+  curation?: Curation,
 ): Promise<Published> {
   const raw = await deps.storage.readSubmittedBytes(id);
   const withPolicy = new TextEncoder().encode(injectCsp(new TextDecoder().decode(raw)));
@@ -47,7 +48,7 @@ export async function publishSubmission(
   // Recorded before the bytes are served. If this throws, nothing is reachable
   // and the submission stays as it was; the other order would leave a file
   // published that the store has no record of.
-  const tool = await deps.storage.publish(id, withPolicy);
+  const tool = await deps.storage.publish(id, withPolicy, curation);
 
   if (targets.siteBucket) {
     const s3 = deps.s3 ?? new S3Client({});

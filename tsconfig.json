@@ -9,6 +9,6 @@
     },
     "baseUrl": "."
   },
-  "include": ["packages/**/*.ts", "vitest.config.ts"],
+  "include": ["packages/**/*.ts", "scripts/**/*.test.ts", "vitest.config.ts"],
   "exclude": ["node_modules", "tests"]
 }

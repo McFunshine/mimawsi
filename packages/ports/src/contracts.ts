@@ -99,6 +99,47 @@ export function describeStoragePort(name: string, create: () => Promise<StorageP
       expect((await storage.listPublished()).map((t) => t.id.value)).toContain(tool.id.value);
     });
 
+    /**
+     * Curation has to survive a read back out of the store, not merely a return
+     * value, because `npm run publish` rebuilds the catalogue index wholesale from
+     * `listPublished()`. Curation the store did not keep would be silently erased
+     * by the next rebuild — the tool would stay published and quietly leave the
+     * collection it was approved into.
+     */
+    it('keeps the curation it was published with, and returns it from the catalogue', async () => {
+      const storage = await create();
+      const submitted = await storage.submit({
+        bytes: bytesOf('<h1>c</h1>'),
+        metadata: meta('C'),
+        maker,
+      });
+      await storage.setState(submitted.id, 'approved');
+
+      const tool = await storage.publish(submitted.id, bytesOf('<h1>c</h1>'), {
+        collections: ['dina'],
+        hidden: true,
+      });
+      expect(tool.curation).toEqual({ collections: ['dina'], hidden: true });
+
+      const listed = (await storage.listPublished()).find((t) => t.id.value === tool.id.value);
+      expect(listed?.curation).toEqual({ collections: ['dina'], hidden: true });
+    });
+
+    it('publishes with no curation as in no collection and not hidden', async () => {
+      const storage = await create();
+      const submitted = await storage.submit({
+        bytes: bytesOf('<h1>d</h1>'),
+        metadata: meta('D'),
+        maker,
+      });
+      await storage.setState(submitted.id, 'approved');
+
+      const tool = await storage.publish(submitted.id, bytesOf('<h1>d</h1>'));
+      // Never hidden by default. The absent case defaulting the other way would
+      // empty the front page the moment this shipped.
+      expect(tool.curation).toEqual({ collections: [], hidden: false });
+    });
+
     it('does not publish a submission that was never approved', async () => {
       const storage = await create();
       const submitted = await storage.submit({

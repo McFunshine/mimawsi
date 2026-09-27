@@ -241,6 +241,220 @@ describe('the approval endpoint', () => {
     expect(response.statusCode).toBe(404);
   });
 
+  /**
+   * Curation — the collections an approver ticked, and whether the tool is hidden.
+   *
+   * Asserted on the *store*, not on the response body. `npm run publish` rebuilds
+   * the catalogue index from the store, so curation that only reached the reply
+   * would be erased by the next rebuild and the tool would quietly leave the
+   * collection it was approved into.
+   */
+  describe('curation at approval', () => {
+    const DINA = { slug: 'dina', title: 'For Dina', blurb: 'puzzles', listed: false };
+
+    async function approveWith(body: Record<string, unknown>) {
+      const storage = await storageWith();
+      // Collections live in the store now, and a fresh store has none. Created
+      // here rather than assumed — which is also what the endpoint requires, and
+      // is why the "unknown slug" case below is a real one rather than a fiction.
+      await storage.createCollection(DINA);
+      const submitted = await storage.submit({
+        bytes: bytes('<h1>hi</h1>'),
+        metadata: { title: 'A', description: 'd', tags: [] },
+        maker: { value: 'maker-1' },
+      });
+      const d = await deps({ storage });
+      const response = await route(d, post('/approve', { id: submitted.id.value, ...body }));
+      const published = (await storage.listPublished()).find(
+        (t) => t.id.value === submitted.id.value,
+      );
+      return { response, published };
+    }
+
+    it('records the collections the approver chose', async () => {
+      const { response, published } = await approveWith({ collections: ['dina'] });
+      expect(response.statusCode).toBe(200);
+      expect(published?.curation?.collections).toEqual(['dina']);
+    });
+
+    it('records hidden when it is asked for', async () => {
+      const { published } = await approveWith({ collections: [], hidden: true });
+      expect(published?.curation?.hidden).toBe(true);
+    });
+
+    it('publishes listed and in no collection when nothing is chosen', async () => {
+      const { published } = await approveWith({});
+      expect(published?.curation).toEqual({ collections: [], hidden: false });
+    });
+
+    /**
+     * The slugs arrive in a request body. An unknown one would assign the tool to a
+     * collection with no page — published, recorded as curated, and findable
+     * nowhere. Dropped rather than refused, because the page's tick-boxes come from
+     * the same registry: a mismatch means the page and the Lambda are on different
+     * versions, and publishing into the collections that do exist beats failing a
+     * review that has already been done.
+     */
+    it('drops a slug that names no collection, and keeps the ones that do', async () => {
+      const { response, published } = await approveWith({
+        collections: ['dina', 'not-a-collection', '../etc/passwd'],
+      });
+      expect(response.statusCode).toBe(200);
+      expect(published?.curation?.collections).toEqual(['dina']);
+    });
+
+    it('treats a non-array of collections as none, rather than failing the approval', async () => {
+      const { response, published } = await approveWith({ collections: 'dina' });
+      expect(response.statusCode).toBe(200);
+      expect(published?.curation?.collections).toEqual([]);
+    });
+
+    it('treats anything but true as not hidden', async () => {
+      const { published } = await approveWith({ hidden: 'yes' });
+      // A truthy string must not hide a tool. The default has to fail towards
+      // listed, or one loose comparison empties the front page.
+      expect(published?.curation?.hidden).toBe(false);
+    });
+
+    it('tells the catalogue what it recorded, so the dispatch and the store agree', async () => {
+      // Typed with its parameter so the recorded call can be read back; a
+      // zero-argument mock makes `mock.calls[0][0]` a type error.
+      const announce = vi.fn(
+        async (_notice: Parameters<AdminDeps['dispatcher']['announce']>[0]) => ['o/site'],
+      );
+      const storage = await storageWith();
+      await storage.createCollection(DINA);
+      const submitted = await storage.submit({
+        bytes: bytes('<h1>hi</h1>'),
+        metadata: { title: 'A', description: 'd', tags: [] },
+        maker: { value: 'maker-1' },
+      });
+      const d = await deps({ storage, dispatcher: { announce } });
+
+      await route(
+        d,
+        post('/approve', { id: submitted.id.value, collections: ['dina'], hidden: true }),
+      );
+
+      expect(announce).toHaveBeenCalledTimes(1);
+      expect(announce.mock.calls[0]?.[0].tool.curation).toEqual({
+        collections: ['dina'],
+        hidden: true,
+      });
+      // In full, not as slugs. The site keeps its own committed copy of the
+      // registry and cannot know a collection created on this page, so the
+      // definition has to travel with the tool that first uses it.
+      expect(announce.mock.calls[0]?.[0].collections).toEqual([DINA]);
+    });
+  });
+
+  /**
+   * Creating a collection from the approval page.
+   *
+   * The slug becomes a URL path segment and a directory name, so it is checked
+   * here and not merely in the page: this endpoint answers curl too.
+   */
+  describe('creating a collection', () => {
+    it('creates one and hands it back', async () => {
+      const storage = await storageWith();
+      const d = await deps({ storage });
+
+      const response = await route(
+        d,
+        post('/collections', { slug: 'britpop_quizzes', title: 'Britpop quizzes' }),
+      );
+
+      expect(response.statusCode).toBe(201);
+      expect(JSON.parse(response.body).collection.slug).toBe('britpop_quizzes');
+      expect((await storage.listCollections()).map((c) => c.slug)).toEqual(['britpop_quizzes']);
+    });
+
+    it('creates it unlisted, whatever was asked for', async () => {
+      const storage = await storageWith();
+      const d = await deps({ storage });
+
+      // Putting a collection on the front page of the site is a commit, not a
+      // side effect of approving something, so the field is not even read.
+      const response = await route(
+        d,
+        post('/collections', { slug: 'loud', title: 'Loud', listed: true }),
+      );
+
+      expect(JSON.parse(response.body).collection.listed).toBe(false);
+    });
+
+    it.each([
+      ['Dina', 'an uppercase letter'],
+      ['two words', 'a space'],
+      ['has-a-hyphen', 'a hyphen'],
+      ['9lives', 'a leading digit'],
+      ['../etc/passwd', 'a path'],
+      ['', 'nothing at all'],
+    ])('refuses %s, which is %s', async (slug) => {
+      const storage = await storageWith();
+      const response = await route(
+        await deps({ storage }),
+        post('/collections', { slug, title: 'T' }),
+      );
+
+      expect(response.statusCode).toBe(400);
+      expect(await storage.listCollections()).toEqual([]);
+    });
+
+    it('refuses a slug that is already a page on the site', async () => {
+      const storage = await storageWith();
+      // `run` would never be reachable: Astro prefers the static route, so the
+      // collection would look created and have no page.
+      const response = await route(
+        await deps({ storage }),
+        post('/collections', { slug: 'run', title: 'Run' }),
+      );
+
+      expect(response.statusCode).toBe(400);
+      expect(await storage.listCollections()).toEqual([]);
+    });
+
+    it('requires a title, because an untitled collection has no heading', async () => {
+      const storage = await storageWith();
+      const response = await route(
+        await deps({ storage }),
+        post('/collections', { slug: 'ok', title: '  ' }),
+      );
+
+      expect(response.statusCode).toBe(400);
+      expect(await storage.listCollections()).toEqual([]);
+    });
+
+    it('answers 409 rather than overwriting one that exists', async () => {
+      const storage = await storageWith();
+      await storage.createCollection({ slug: 'dina', title: 'For Dina', blurb: '', listed: false });
+      const d = await deps({ storage });
+
+      const response = await route(
+        d,
+        post('/collections', { slug: 'dina', title: 'Something else' }),
+      );
+
+      expect(response.statusCode).toBe(409);
+      // The "and not" half: the existing one is untouched, not renamed.
+      expect((await storage.listCollections())[0]?.title).toBe('For Dina');
+    });
+
+    it('lists what exists, and refuses a stranger', async () => {
+      const storage = await storageWith();
+      await storage.createCollection({ slug: 'dina', title: 'For Dina', blurb: '', listed: false });
+
+      const mine = await route(await deps({ storage }), get('/collections'));
+      expect(JSON.parse(mine.body).collections).toHaveLength(1);
+
+      const theirs = await route(
+        await deps({ storage, identify: async () => STRANGER }),
+        get('/collections'),
+      );
+      expect(theirs.statusCode).toBe(403);
+    });
+  });
+
   it('reports misconfiguration as a fault, not as a refusal', async () => {
     const d = await deps({ configured: false });
     const response = await route(d, get('/queue'));
