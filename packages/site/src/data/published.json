@@ -224,5 +224,24 @@
     "maker": "108056334774193947679",
     "sha256": "a425b551ac2028181bbe07c14c98c57f2f058885e207a581219c111a8fa086dc",
     "sizeBytes": 11027
+  },
+  {
+    "id": {
+      "value": "7ac62715-a573-423e-bfca-6b6a26889aef"
+    },
+    "metadata": {
+      "title": "MSP Connections",
+      "description": "what groups are connected and why?",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "abe59aefab475529365aaf232f1ac5870da1fbeb07aad0f77cddd4a84e1ee343",
+    "sizeBytes": 13373
   }
 ]
