@@ -43,13 +43,25 @@ const runnerOrigin =
     engines: TC-CSP13 and TC-CSP14.
   */}
   {runnerOrigin ? (
-    <iframe
-      title={`Running ${title}`}
-      src={`${runnerOrigin}/${id}.html`}
-      sandbox="allow-scripts allow-downloads allow-forms"
-      referrerpolicy="no-referrer"
-      loading="eager"
-    ></iframe>
+    <div class="stage" id="stage">
+      <div class="stagebar">
+        <button type="button" class="fsbtn" id="goFull">
+          <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+            <path d="M1 5V1h4M13 9v4H9M13 5V1H9M1 9v4h4" fill="none"
+              stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          Full screen
+        </button>
+        <button type="button" class="fsbtn" id="exitFull" hidden>Close</button>
+      </div>
+      <iframe
+        title={`Running ${title}`}
+        src={`${runnerOrigin}/${id}.html`}
+        sandbox="allow-scripts allow-downloads allow-forms"
+        referrerpolicy="no-referrer"
+        loading="eager"
+      ></iframe>
+    </div>
   ) : (
     <p class="pending">
       Running a tool inside this page needs its own separate origin, which is not
@@ -78,6 +90,47 @@ const runnerOrigin =
     width: 100%; height: 34rem; border: 1px solid var(--line);
     border-radius: 10px; background: var(--bg); display: block;
   }
+  /* On a phone a fixed 34rem frame is taller than the screen. */
+  @media (max-width: 40rem) {
+    iframe { height: min(34rem, 68vh); }
+  }
+
+  .stage { position: relative; }
+  .stagebar { display: flex; gap: .4rem; justify-content: flex-end; margin: 0 0 .5rem; }
+  .fsbtn {
+    display: inline-flex; align-items: center; gap: .4rem;
+    background: transparent; color: var(--dim); border: 1px solid var(--line);
+    border-radius: 7px; padding: .35rem .7rem; font: inherit; font-size: .8rem;
+    cursor: pointer;
+  }
+  .fsbtn:hover { color: var(--ink, inherit); border-color: var(--accent); }
+  .fsbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /*
+    Two ways to fill the screen, because one of them is not available everywhere.
+    The Fullscreen API is tried first; `.stage--filled` is the fallback, and on an
+    iPhone it is the only path — Safari there supports fullscreen for video
+    elements only, so `requestFullscreen` on a div either throws or is absent.
+    The fallback is plain fixed positioning, which works in every browser.
+  */
+  .stage--filled {
+    position: fixed; inset: 0; z-index: 9999; background: #0c0b11;
+    display: flex; flex-direction: column;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .stage--filled .stagebar { margin: .4rem .6rem; }
+  .stage--filled iframe {
+    flex: 1 1 auto; height: auto; min-height: 0;
+    border: 0; border-radius: 0;
+  }
+
+  /* The same shape when real fullscreen is granted. */
+  .stage:fullscreen { background: #0c0b11; display: flex; flex-direction: column; }
+  .stage:fullscreen .stagebar { margin: .4rem .6rem; }
+  .stage:fullscreen iframe { flex: 1 1 auto; height: auto; min-height: 0; border: 0; border-radius: 0; }
+  .stage:-webkit-full-screen { background: #0c0b11; display: flex; flex-direction: column; }
+  .stage:-webkit-full-screen iframe { flex: 1 1 auto; height: auto; border: 0; border-radius: 0; }
   .actions { margin: 1.2rem 0 0; font-size: .9rem; font-weight: 600; }
   .actions a { color: var(--accent); text-decoration: none; }
   .actions a:hover { text-decoration: underline; }
@@ -87,3 +140,83 @@ const runnerOrigin =
     color: var(--dim); font-size: .9rem; margin: 0;
   }
 </style>
+
+<script>
+  /*
+    Full screen, with a fallback that is not optional.
+
+    Safari on iPhone implements the Fullscreen API for <video> only, so
+    `requestFullscreen` on a div is missing or rejects there. Since a phone is
+    exactly where escaping the letterboxed frame matters most, the CSS path
+    (`.stage--filled`, fixed to the viewport) is the one that has to work, and the
+    native call is the upgrade rather than the plan.
+
+    Both states are kept in sync so Escape, the browser's own exit gesture and the
+    Close button all end up in the same place.
+  */
+  const stage = document.getElementById('stage');
+  const goFull = document.getElementById('goFull');
+  const exitFull = document.getElementById('exitFull');
+
+  if (stage && goFull && exitFull) {
+    const nativeEnter =
+      stage.requestFullscreen ??
+      (stage as unknown as { webkitRequestFullscreen?: () => Promise<void> }).webkitRequestFullscreen;
+
+    const nativeOn = () =>
+      !!(document.fullscreenElement ??
+        (document as unknown as { webkitFullscreenElement?: Element }).webkitFullscreenElement);
+
+    function show(filled: boolean) {
+      goFull.hidden = filled;
+      exitFull.hidden = !filled;
+      document.documentElement.style.overflow = filled ? 'hidden' : '';
+    }
+
+    async function enter() {
+      if (nativeEnter) {
+        try {
+          await nativeEnter.call(stage);
+          show(true);
+          return;
+        } catch {
+          // Refused — an iframe policy, a permission, or an engine that only
+          // pretends to have the API. The fallback covers all of them.
+        }
+      }
+      stage.classList.add('stage--filled');
+      show(true);
+    }
+
+    function leave() {
+      if (nativeOn()) {
+        const exit =
+          document.exitFullscreen ??
+          (document as unknown as { webkitExitFullscreen?: () => Promise<void> }).webkitExitFullscreen;
+        if (exit) {
+          void exit.call(document);
+          return;
+        }
+      }
+      stage.classList.remove('stage--filled');
+      show(false);
+    }
+
+    goFull.addEventListener('click', enter);
+    exitFull.addEventListener('click', leave);
+
+    // The browser can leave fullscreen without us: Escape, a swipe, a gesture.
+    for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) {
+      document.addEventListener(ev, () => {
+        const on = nativeOn();
+        if (!on) stage.classList.remove('stage--filled');
+        show(on || stage.classList.contains('stage--filled'));
+      });
+    }
+
+    // Escape has to work in the fallback too, where the browser will not send it.
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && (nativeOn() || stage.classList.contains('stage--filled'))) leave();
+    });
+  }
+</script>

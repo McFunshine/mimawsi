@@ -65,6 +65,15 @@ which runs on all three engines on every commit.
 - **`form-action` is checked at navigation time, after `submit` is dispatched.**
   So denying it costs a well-behaved tool nothing. Verified on all three engines;
   it is the whole reason the frame can be opened up without opening egress.
+- **Safari on iPhone has no Fullscreen API for anything but `<video>`.** So the
+  Try page's Full screen control cannot rely on `requestFullscreen`; it tries it
+  and falls back to fixed positioning, which is the path a phone actually takes.
+  A test that only exercised the native call would pass on every desktop engine
+  and prove nothing about the device most tools get played on. TC-S07/TC-S08.
+- **A touchscreen never fires `dragstart`.** HTML5 drag-and-drop is therefore
+  inert on a phone, silently — no error, no event, a control that simply does
+  nothing while working perfectly on a desktop. Anything draggable must use
+  pointer events. Found by testing an emulated iPhone, not by reading the code.
 - The verified policy is
   `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; form-action 'none'; base-uri 'none'`
   and lives in `tests/support/policy.ts`. Changing that string invalidates every result above.

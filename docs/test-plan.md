@@ -81,6 +81,9 @@ Assert at the frame boundary only. Never locate inside tool content.
 | TC-S05 | A form handled with `preventDefault` works inside the Try frame | AC-55 | done — green on 3 engines; cannot fail on WebKit, which dispatches `submit` without `allow-forms` |
 | TC-S06 | A form inside the Try frame still cannot submit to an external origin | AC-6, AC-54 | done — green on 3 engines |
 
+| TC-S07 | The Full screen control makes the framed tool fill the viewport | AC-5 | done — green on chromium, webkit and mobile |
+| TC-S08 | With no Fullscreen API the CSS fallback still fills the screen, and Close gets back out | AC-5 | done — this is the path an iPhone takes |
+
 TC-S05 and TC-S06 locate inside the frame, against fixtures authored in the spec.
 That is the one deviation from the boundary rule above and the spec says why: a
 suppressed `submit` event has no boundary signal at all.
