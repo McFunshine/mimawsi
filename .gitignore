@@ -33,7 +33,9 @@ packages/site/public/tools/*.html
 !packages/site/public/tools/word-counter.html
 
 # Working notes, handovers and review responses — useful locally, not product.
-HANDOFF.md
+# Handovers, dated archives included: a trailing comment on this line would
+# become part of the pattern and ignore nothing at all.
+HANDOFF*.md
 notes/
 
 # Terraform — state can contain secrets and must never be committed
