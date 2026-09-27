@@ -167,5 +167,24 @@
     "maker": "108056334774193947679",
     "sha256": "89168066c4556af851fad0c9d9840ac7bf255c582f67804ad00a3988f2096292",
     "sizeBytes": 20423
+  },
+  {
+    "id": {
+      "value": "1bc5567d-16fc-4ac3-83b9-005abe516fcf"
+    },
+    "metadata": {
+      "title": "MSP Anagrams",
+      "description": "some manic street preacher anagrams",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "3818bc1b3afbe1affe131449a4e45ace5229562f69f5c10d64f8c5925b04f96d",
+    "sizeBytes": 14038
   }
 ]
