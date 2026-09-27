@@ -205,5 +205,24 @@
     "maker": "108056334774193947679",
     "sha256": "5ac0a808b02d6880e73332c1dde8287435cc6fab57638c1006a8bb87450667cd",
     "sizeBytes": 13043
+  },
+  {
+    "id": {
+      "value": "418c6ced-5888-41e9-a18c-ca59505bfd26"
+    },
+    "metadata": {
+      "title": "MSP Crossword",
+      "description": "it's a crossword",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "a425b551ac2028181bbe07c14c98c57f2f058885e207a581219c111a8fa086dc",
+    "sizeBytes": 11027
   }
 ]
