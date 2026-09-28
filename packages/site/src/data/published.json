@@ -433,5 +433,24 @@
     "maker": "108056334774193947679",
     "sha256": "cfe6f3b34a201d400692ce3933ee18adbc5feec7de8fd16d3a2fa64093f178e8",
     "sizeBytes": 15993
+  },
+  {
+    "id": {
+      "value": "eb06323d-2c2f-4cc6-99fb-e50c92b33cc7"
+    },
+    "metadata": {
+      "title": "dina sliders",
+      "description": "sliding into the eclipse",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "6d02bd30d417ffbbeded86be39223b2c5d64de321702be3c62444ae596495167",
+    "sizeBytes": 73469
   }
 ]
