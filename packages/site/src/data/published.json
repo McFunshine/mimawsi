@@ -471,5 +471,24 @@
     "maker": "108056334774193947679",
     "sha256": "173eb7f5a1710242a28b659b60e6f37b691634e949000322466037c30c370798",
     "sizeBytes": 15392
+  },
+  {
+    "id": {
+      "value": "dabef0c7-1ff1-403d-8c55-7345d707b7a9"
+    },
+    "metadata": {
+      "title": "a concert in your telephone",
+      "description": "Pair this slideshow with a Spotify MSP concert playlist and it will be almost as if you were there.",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "06ae05889e9454a831b2e360932e027e3aec9fd691f3682cdce07a5f535daf0e",
+    "sizeBytes": 18978009
   }
 ]
