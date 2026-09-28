@@ -528,5 +528,24 @@
     "maker": "108056334774193947679",
     "sha256": "5393e4171769c2e84419194cac337c672afa6131debe487fdbf98ea0ebd25e66",
     "sizeBytes": 800732
+  },
+  {
+    "id": {
+      "value": "a80d836d-d752-4136-b7c4-33272159b4d6"
+    },
+    "metadata": {
+      "title": "Feyenoord - Blind Ranking",
+      "description": "try and rank Feyenoord players and managers without knowing who is coming next",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "9069ab9cd808c2f5502fac19deb8e407384298f9fbd8b9247a7f2b705aa427c2",
+    "sizeBytes": 885492
   }
 ]
