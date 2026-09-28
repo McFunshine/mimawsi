@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import { SUBMIT_TRANSPORT_LIMIT_BYTES } from '@mimawsi/domain';
 
 // The API is a separate origin — a Function URL in production, a local port now.
 // As in run/[id].astro: localhost is a dev convenience, never something to publish.
@@ -32,7 +33,7 @@ const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID ?? null;
   <div class="drop" id="drop">
     <label for="file">Choose an HTML file</label>
     <input id="file" type="file" accept=".html,text/html" />
-    <p class="hint">or drag it here</p>
+    <p class="hint">or drag it here — up to {Math.round(SUBMIT_TRANSPORT_LIMIT_BYTES / 1048576)} MB</p>
   </div>
 
   <p class="chosen" id="chosen" hidden></p>
@@ -45,7 +46,7 @@ const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID ?? null;
   */}
   <div id="preview"></div>
 
-  <form id="details" data-api={apiOrigin ?? ''}>
+  <form id="details" data-api={apiOrigin ?? ''} data-max-bytes={String(SUBMIT_TRANSPORT_LIMIT_BYTES)}>
     <p class="field">
       <label for="title">Title</label>
       <input id="title" name="title" type="text" required />
@@ -111,6 +112,8 @@ const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID ?? null;
   const signin = document.getElementById('signin') as HTMLButtonElement;
   const status = document.getElementById('status') as HTMLElement;
   const api = details.dataset.api as string;
+  const maxBytes = Number(details.dataset.maxBytes);
+  const mb = (bytes: number): string => `${(bytes / 1048576).toFixed(1)} MB`;
 
   let chosenHtml = '';
 
@@ -155,6 +158,17 @@ const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID ?? null;
     if (!file) {
       return;
     }
+    if (file.size > maxBytes) {
+      chosenHtml = '';
+      chosen.hidden = true;
+      preview.replaceChildren();
+      status.textContent =
+        `That file is ${mb(file.size)}, and submissions carry ${mb(maxBytes)}. ` +
+        'Nothing has been sent. A slideshow or anything else carrying photos inside it ' +
+        'will need smaller pictures to fit.';
+      return;
+    }
+    status.textContent = '';
     chosenHtml = await file.text();
     show(file.name, chosenHtml);
     const title = document.getElementById('title') as HTMLInputElement;
@@ -168,16 +182,28 @@ const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID ?? null;
     const title = (document.getElementById('title') as HTMLInputElement).value;
     const description = (document.getElementById('description') as HTMLTextAreaElement).value;
 
-    const response = await fetch(new URL('/submit', api), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ title, description, html: chosenHtml }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(new URL('/submit', api), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ title, description, html: chosenHtml }),
+      });
+    } catch {
+      status.textContent =
+        `Could not reach the server. If your file is near ${mb(maxBytes)} it was refused ` +
+        'before arriving; otherwise check your connection and try again.';
+      return;
+    }
     const body = await response.json();
 
     if (response.status === 201) {
       auth.hidden = true;
       status.textContent = `Submitted. Your tool is pending review.`;
+      return;
+    }
+    if (response.status === 413) {
+      status.textContent = `That file is too large to submit. The limit is ${mb(body.maxBytes ?? maxBytes)}.`;
       return;
     }
     if (response.status === 409) {

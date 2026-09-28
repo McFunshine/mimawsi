@@ -11,7 +11,7 @@
  * (reviewable in Terraform) rather than a string in a handler.
  */
 import { S3Storage, googleIdentity, operatorIdentity } from '@mimawsi/adapters-aws';
-import { MAX_TOOL_BYTES } from '@mimawsi/domain';
+import { MAX_TOOL_BYTES, SUBMIT_TRANSPORT_LIMIT_BYTES } from '@mimawsi/domain';
 import type { Maker } from '@mimawsi/domain';
 import { submit } from './submit.ts';
 import type { SubmitDeps, SubmitRequest } from './submit.ts';
@@ -41,7 +41,7 @@ interface Response {
  * message naming the real limit, because "we could not read your request" is a
  * worse answer than "this endpoint currently carries 5 MiB".
  */
-const TRANSPORT_LIMIT_BYTES = 5 * 1024 * 1024;
+const TRANSPORT_LIMIT_BYTES = SUBMIT_TRANSPORT_LIMIT_BYTES;
 
 const json = (statusCode: number, body: unknown): Response => ({
   statusCode,

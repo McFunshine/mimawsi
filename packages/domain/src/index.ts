@@ -125,6 +125,22 @@ export interface ScanResult {
 export const MAX_TOOL_BYTES = 26_214_400;
 
 /**
+ * What the submission endpoint can actually carry, which is not MAX_TOOL_BYTES.
+ *
+ * Lambda refuses a synchronous request payload over 6 MB at the platform edge,
+ * before the handler runs, and its refusal carries no CORS headers — so a browser
+ * reports an oversized submission as "blocked by CORS policy", which tells the
+ * maker nothing. This is the ceiling we refuse at ourselves, below the platform's,
+ * so the answer is a readable 413 instead.
+ *
+ * It lives here only so the handler and the upload page cannot disagree about the
+ * number. It is not a rule about how large a tool may be — that is MAX_TOOL_BYTES
+ * — and it should be deleted when submissions move to a presigned S3 PUT, which
+ * would carry the full 25 MiB.
+ */
+export const SUBMIT_TRANSPORT_LIMIT_BYTES = 5 * 1024 * 1024;
+
+/**
  * Accepted submissions per account per rolling 24 hours.
  *
  * Rolling rather than per calendar day: a midnight reset lets an account send
