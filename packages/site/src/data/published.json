@@ -395,5 +395,24 @@
     "maker": "108056334774193947679",
     "sha256": "5a67a4096f3acf232ab61d745f5754e223fb7df6c55415b9c3dfa16996146b75",
     "sizeBytes": 789134
+  },
+  {
+    "id": {
+      "value": "81ceb87c-7270-4d0a-b6a0-50696e7cc0ca"
+    },
+    "metadata": {
+      "title": "MSP cover art",
+      "description": "get the album cover pairs",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "7eac28fb2f3dd11cc006cef2676146a1ca3208fa9e3b3e312377b6895f7f8486",
+    "sizeBytes": 555496
   }
 ]
