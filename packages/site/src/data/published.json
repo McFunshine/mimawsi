@@ -452,5 +452,24 @@
     "maker": "108056334774193947679",
     "sha256": "6d02bd30d417ffbbeded86be39223b2c5d64de321702be3c62444ae596495167",
     "sizeBytes": 73469
+  },
+  {
+    "id": {
+      "value": "d4450bf8-7d36-4202-b302-2b25443493dc"
+    },
+    "metadata": {
+      "title": "MSP Discography Chronologically",
+      "description": "put the albums in order",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "173eb7f5a1710242a28b659b60e6f37b691634e949000322466037c30c370798",
+    "sizeBytes": 15392
   }
 ]
