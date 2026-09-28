@@ -509,5 +509,24 @@
     "maker": "108056334774193947679",
     "sha256": "a654296d519ffd7170903b53d9c720c251a1d9908b044559d3915cf8dc34a989",
     "sizeBytes": 1928610
+  },
+  {
+    "id": {
+      "value": "e1f7813b-2a9a-4819-8c75-7970a4732781"
+    },
+    "metadata": {
+      "title": "BRITPOP - The Definitive Dina!",
+      "description": "rank these Britpop and Britpop adjacent bands, so we will finally know the truth",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "5393e4171769c2e84419194cac337c672afa6131debe487fdbf98ea0ebd25e66",
+    "sizeBytes": 800732
   }
 ]
