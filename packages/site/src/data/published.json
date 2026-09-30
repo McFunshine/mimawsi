@@ -585,5 +585,24 @@
     "maker": "108056334774193947679",
     "sha256": "a71451408899767de179332b383e9ae99ecb364619ebc3360ccecef7f8666ca1",
     "sizeBytes": 273968
+  },
+  {
+    "id": {
+      "value": "a04f2e0b-b129-44ad-ab95-c7cb58b91823"
+    },
+    "metadata": {
+      "title": "Dina's Dream MSP Set List",
+      "description": "choose the set list of songs for your dream Manic Street Preachers Concert in your back garden!",
+      "tags": []
+    },
+    "curation": {
+      "collections": [
+        "dina"
+      ],
+      "hidden": true
+    },
+    "maker": "108056334774193947679",
+    "sha256": "46e6115efc12e1e902431df14cebbc840119b86f84457a9cb0c1b6a1b3c53fb3",
+    "sizeBytes": 71573
   }
 ]
